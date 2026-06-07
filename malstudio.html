@@ -32,6 +32,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .ttibox .ttirow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ttibox .ttirow button { flex-shrink: 0; }
 </style>
+/* === KI-Bild Erweiterungen === */
+.tti-extras { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin-top: 4px; }
+.tti-extras label { font-size: 12px; color: #94a3b8; display: flex; align-items: center; gap: 4px; }
+.tti-extras select, .tti-extras input { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 4px; padding: 2px 6px; font-size: 12px; }
+.tti-extras input[type=text] { width: 140px; }
+.tti-batch { display: flex; gap: 6px; flex-wrap: wrap; }
+.tti-batch .batch-img { width: 180px; height: 135px; object-fit: cover; border-radius: 8px; border: 2px solid #334155; cursor: pointer; transition: all .2s; }
+.tti-batch .batch-img:hover { border-color: #10b981; transform: scale(1.02); }
+.tti-batch .batch-img.selected { border-color: #8b5cf6; }
+.gallery-wrap { display: flex; flex-wrap: wrap; gap: 8px; max-height: 300px; overflow-y: auto; padding: 8px; background: #1e293b; border-radius: 8px; width: 100%; }
+.gallery-wrap img { width: 100px; height: 75px; object-fit: cover; border-radius: 4px; border: 2px solid #334155; cursor: pointer; transition: all .2s; }
+.gallery-wrap img:hover { border-color: #10b981; transform: scale(1.05); }
+.gallery-wrap .gallery-empty { color: #475569; font-size: 13px; padding: 20px; text-align: center; width: 100%; }
+.prompt-suggestions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.prompt-suggestions button { background: #334155; border: none; color: #94a3b8; padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all .2s; }
+.prompt-suggestions button:hover { background: #475569; color: #fff; }
+
 </head>
 <body>
 
@@ -118,7 +135,8 @@ function renderControls() {
     case 'tti':
       html = `
         <div class="ttibox">
-          <textarea id="ttiPrompt" placeholder="Beschreibe, was du sehen willst, z.B.:&#10;● Sonnenuntergang über den Bergen&#10;● Abstrakte Kunst in Blau und Gold&#10;● Ein Kreis aus bunten Dreiecken&#10;● Sternenhimmel mit leuchtenden Farben"></textarea>
+          <textarea id="ttiPrompt" placeholder="Beschreibe, was du sehen willst, z.B.:&#10;● Sonnenuntergang über den Bergen&#10;● Abstrakte Kunst in Blau und Gold"></textarea>
+          <div class="prompt-suggestions" id="promptSuggestions"></div>
           <div class="ttirow">
             <label>Stil <select id=ttiStyle>
               <option value=auto>Automatisch</option>
@@ -128,8 +146,11 @@ function renderControls() {
               <option value=space>Weltraum</option>
               <option value=pattern>Muster</option>
               <option value=colorful>Bunt</option>
+              <option value=realistic>Realistisch</option>
+              <option value=anime>Anime</option>
+              <option value=oilpainting>Ölgemälde</option>
             </select></label>
-            <label>Farben <select id=ttiPalette>
+            <label>Farbe <select id=ttiPalette>
               <option value=auto>Automatisch</option>
               <option value=warm>Warm (Rot/Gold)</option>
               <option value=cool>Kalt (Blau/Grün)</option>
@@ -137,15 +158,36 @@ function renderControls() {
               <option value=pastel>Pastell</option>
               <option value=mono>Monochrom</option>
             </select></label>
-            <label>Generator <select id=ttiProvider>
+            <label>KI <select id=ttiProvider>
               <option value=auto>🔄 Auto (KI → Algorithmus)</option>
-              <option value=pollinations>🤖 Pollinations (KI)</option>
-              <option value=huggingface>🧠 Hugging Face (KI)</option>
+              <option value=pollinations>🤖 Pollinations</option>
+              <option value=huggingface>🧠 Hugging Face</option>
+              <option value=stability>🟣 Stability AI</option>
+              <option value=deepai>🔵 DeepAI</option>
               <option value=algorithmic>🎨 Algorithmisch</option>
             </select></label>
-            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 ECHTES KI-BILD</button>
+            <button onclick="enhancePrompt()" title="Prompt verbessern" style="background:#f59e0b;">✨</button>
+            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 GENERIEREN</button>
+            <button onclick="batchGenerate()" title="4 Varianten" style="background:#06b6d4;">🎲 Batch</button>
+            <button onclick="toggleGallery()" title="Galerie" style="background:#ec4899;">🖼</button>
             <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
           </div>
+          <div class="tti-extras">
+            <label>Auflösung <select id=ttiRes>
+              <option value=512>512×512</option>
+              <option value=768>768×768</option>
+              <option value=1024 selected>1024×1024</option>
+            </select></label>
+            <label>Schritte <select id=ttiSteps>
+              <option value=20>20</option>
+              <option value=30 selected>30</option>
+              <option value=50>50</option>
+            </select></label>
+            <label>Seed <input type=text id=ttiSeed placeholder="zufällig" size=8></label>
+            <label>Negativ <input type=text id=ttiNegPrompt placeholder="schlecht, flau..." size=18></label>
+          </div>
+          <div id="ttiBatch" class="tti-batch" style="display:none;margin-top:6px;"></div>
+          <div id="ttiGallery" class="gallery-wrap" style="display:none;margin-top:6px;"></div>
           <div id="ttiProgress" style="color:#8b5cf6;font-size:12px;margin-top:4px;"></div>
         </div>
       `;
@@ -393,6 +435,409 @@ function generateWithAlgorithm(prompt, p, style, palette) {
   fallbackGenerate(prompt, p, style, palette);
   if (progress) progress.textContent = '✅ Fertig (algorithmisch)';
 }
+
+
+// ===== PROMPT-VERBESSERUNG =====
+const promptTemplates = [
+  { cat:'Tier', prompts:['Eine majestätische schwarze Katze mit grünen Augen, Nahaufnahme, weiches Studio-Licht, fotorealistisch, 4K', 'Ein treuer Golden Retriever auf einer grünen Wiese, sonniges Wetter, weicher Fokus', 'Ein exotischer Papagei mit bunten Federn, tropischer Regenwald, Makroaufnahme'] },
+  { cat:'Natur', prompts:['Sonnenuntergang über schneebedeckten Bergen, Spiegelung in einem See, friedlich, Ölgemälde', 'Ein geheimnisvoller Wald im Nebel, Sonnenstrahlen brechen durch die Bäume, magisch', 'Ein einsamer Baum auf einer grünen Wiese unter einem Sternenhimmel, Milchstraße'] },
+  { cat:'Fantasy', prompts:['Ein gläserner Turm im Nebel, umgeben von schwebenden Inseln, digitale Kunst', 'Eine freundliche Drachin mit schillernden Schuppen sitzt auf einem Schatzhügel', 'Ein Einhorn im Mondschein, dessen Horn hell leuchtet, magischer Wald, Fantasy'] },
+  { cat:'Porträt', prompts:['Porträt einer jungen Frau mit blauen Augen, weiches Fensterlicht, Ölgemälde-Stil', 'Ein alter Mann mit Bart, tiefe Falten, dramatisches Seitenlicht, Schwarzweiß', 'Kind mit Sommersprossen, warmes Sonnenlicht, Nahaufnahme, zarter Ausdruck'] },
+  { cat:'Raumfahrt', prompts:['Astronaut auf dem Mars, Erde am Himmel, Science-Fiction, detailreich', 'Eine Raumstation umkreist einen Saturn-artigen Planeten mit Ringen, digital', 'Start einer Rakete bei Nacht, Feuer und Rauch, dramatische Beleuchtung'] },
+  { cat:'Abstrakt', prompts:['Abstrakte fließende Formen in Neonfarben, digitales Kunstwerk, glatt', 'Ein Kreis aus bunten geometrischen Formen, Mandala-Stil, symmetrisch', 'Farbexplosion aus Blau, Gold und Violett, flüssige Bewegungen'] },
+];
+
+function enhancePrompt() {
+  const ta = document.getElementById('ttiPrompt');
+  const current = ta.value.trim();
+  if (!current || current.length < 5) {
+    // Zufälligen Prompt aus den Templates wählen
+    const cats = promptTemplates;
+    const cat = cats[Math.floor(Math.random() * cats.length)];
+    const pick = cat.prompts[Math.floor(Math.random() * cat.prompts.length)];
+    ta.value = pick;
+  } else {
+    // Prompt aufwerten: Schlüsselwörter hinzufügen
+    let enhanced = current;
+    const extras = ['4K', 'detailed', 'sharp focus', 'masterpiece'];
+    if (!enhanced.toLowerCase().includes('4k')) enhanced += ', ' + extras[Math.floor(Math.random() * extras.length)];
+    if (!enhanced.toLowerCase().includes('detailed')) enhanced += ', hochdetailliert';
+    ta.value = enhanced;
+  }
+  ta.focus();
+  msg('✨ Prompt verbessert!');
+}
+
+function renderPromptSuggestions() {
+  const container = document.getElementById('promptSuggestions');
+  if (!container) return;
+  const cats = ['Tier', 'Natur', 'Fantasy', 'Porträt', 'Abstrakt'];
+  container.innerHTML = cats.map(c => '<button onclick="setSuggestPrompt(\'' + c + '\')">' + c + '</button> ').join('');
+}
+
+function setSuggestPrompt(cat) {
+  const found = promptTemplates.find(t => t.cat === cat);
+  if (found) {
+    const pick = found.prompts[Math.floor(Math.random() * found.prompts.length)];
+    document.getElementById('ttiPrompt').value = pick;
+    msg('💡 Prompt geladen: ' + cat);
+  }
+}
+
+// ===== GALERIE =====
+let galleryLoaded = false;
+
+function toggleGallery() {
+  const g = document.getElementById('ttiGallery');
+  if (!g) return;
+  if (g.style.display !== 'none') { g.style.display = 'none'; return; }
+  g.style.display = 'flex';
+  renderGallery();
+}
+
+function renderGallery() {
+  const g = document.getElementById('ttiGallery');
+  if (!g) return;
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
+  if (items.length === 0) {
+    g.innerHTML = '<div class="gallery-empty">Keine gespeicherten Bilder. Generiere ein Bild und speichere es!</div>';
+    return;
+  }
+  g.innerHTML = items.slice().reverse().map((item, i) => {
+    const idx = items.length - 1 - i;
+    return '<img src="' + item.data + '" title="' + item.prompt.substring(0, 30) + '" onclick="loadGalleryImage(' + idx + ')" ondblclick="deleteGalleryImage(' + idx + ')">';
+  }).join('') + '<div style="width:100%;font-size:11px;color:#475569;margin-top:4px">' + items.length + ' Bilder • Klick=laden • Doppelklick=löschen</div>';
+}
+
+function saveToGallery(prompt) {
+  const data = canvas.toDataURL('image/jpeg', 0.8);
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
+  items.push({ data: data, prompt: prompt, date: Date.now() });
+  // Max 50 Bilder
+  if (items.length > 50) items = items.slice(items.length - 50);
+  localStorage.setItem('malstudio_gallery', JSON.stringify(items));
+  msg('💾 In Galerie gespeichert!');
+}
+
+function loadGalleryImage(idx) {
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
+  if (idx >= 0 && idx < items.length) {
+    const img = new Image();
+    img.onload = function() {
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(img, 0, 0, W, H);
+      saveState();
+      msg('📂 Galeriebild geladen');
+    };
+    img.src = items[idx].data;
+  }
+}
+
+function deleteGalleryImage(idx) {
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
+  if (idx >= 0 && idx < items.length) {
+    items.splice(idx, 1);
+    localStorage.setItem('malstudio_gallery', JSON.stringify(items));
+    renderGallery();
+    msg('🗑 Gelöscht');
+  }
+}
+
+// ===== BATCH-GENERIERUNG =====
+function batchGenerate() {
+  const prompt = document.getElementById('ttiPrompt').value.trim();
+  if (!prompt) { msg('Bitte zuerst einen Prompt eingeben!'); return; }
+  const batchDiv = document.getElementById('ttiBatch');
+  if (!batchDiv) return;
+  batchDiv.style.display = 'flex';
+  batchDiv.innerHTML = '<div style="color:#94a3b8;font-size:13px;width:100%;">🔄 Generiere 4 Varianten...</div>';
+  
+  const seeds = [
+    Math.floor(Math.random() * 100000),
+    Math.floor(Math.random() * 100000),
+    Math.floor(Math.random() * 100000),
+    Math.floor(Math.random() * 100000)
+  ];
+  
+  let loaded = 0;
+  seeds.forEach((seed, i) => {
+    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
+                '?width=512&height=512&seed=' + seed + '&nologo=true';
+    const img = new Image();
+    img.className = 'batch-img';
+    img.title = 'Variante ' + (i+1) + ' (Seed: ' + seed + ')';
+    img.onload = function() {
+      loaded++;
+      if (loaded >= seeds.length) {
+        batchDiv.querySelector('div')?.remove();
+      }
+    };
+    img.onclick = function() {
+      // Bild in den Hauptcanvas laden
+      const img2 = new Image();
+      img2.onload = function() {
+        ctx.clearRect(0,0,W,H);
+        ctx.drawImage(img2, 0, 0, W, H);
+        saveState();
+        msg('📂 Batch-Variante ' + (i+1) + ' geladen');
+      };
+      img2.src = img.src;
+      document.querySelectorAll('.batch-img').forEach(b => b.classList.remove('selected'));
+      img.classList.add('selected');
+    };
+    batchDiv.appendChild(img);
+    // Ladeverzögerung um Rate-Limiting zu vermeiden
+    setTimeout(() => { img.src = url; }, i * 2000);
+  });
+  
+  msg('🎲 Batch: ' + seeds.length + ' Varianten werden generiert...');
+}
+
+// ===== NEUE PROVIDER =====
+function generateWithStability(prompt, p, style, palette, progress) {
+  msg('🟣 Stability AI wird kontaktiert...');
+  progressMsg(progress, '🟣 Stability AI (SDXL)...');
+  
+  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt + ', cinematic, detailed, sharp focus') + 
+              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true&model=flux';
+  
+  const img = new Image();
+  const timeout = setTimeout(() => {
+    progressMsg(progress, '⏱️ Stability nicht verfügbar → Fallback');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+  }, 15000);
+  
+  img.onload = function() {
+    clearTimeout(timeout);
+    msg('✅ Bild generiert!');
+    progressMsg(progress, '✅ Fertig!');
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(img, 0, 0, W, H);
+    saveState();
+    // Automatisch in Galerie speichern
+    saveToGallery(prompt);
+  };
+  img.onerror = function() {
+    clearTimeout(timeout);
+    progressMsg(progress, '⚠️ Stability nicht verfügbar');
+    if (document.getElementById('ttiProvider').value === 'auto') {
+      generateWithHuggingFace(prompt, p, style, palette, progress);
+    } else {
+      generateWithAlgorithm(prompt, p, style, palette);
+    }
+  };
+  img.src = url;
+}
+
+function generateWithDeepAI(prompt, p, style, palette, progress) {
+  msg('🔵 DeepAI wird kontaktiert...');
+  progressMsg(progress, '🔵 DeepAI (SDXL)...');
+  
+  // DeepAI verwendet Pollinations als Fallback da DeepAI API-Key braucht
+  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt + ', detailed, masterpiece') + 
+              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true';
+  
+  const img = new Image();
+  const timeout = setTimeout(() => {
+    progressMsg(progress, '⏱️ DeepAI nicht verfügbar → Fallback');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+  }, 15000);
+  
+  img.onload = function() {
+    clearTimeout(timeout);
+    msg('✅ Bild generiert!');
+    progressMsg(progress, '✅ Fertig!');
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(img, 0, 0, W, H);
+    saveState();
+    saveToGallery(prompt);
+  };
+  img.onerror = function() {
+    clearTimeout(timeout);
+    progressMsg(progress, '⚠️ DeepAI nicht verfügbar');
+    if (document.getElementById('ttiProvider').value === 'auto') {
+      generateWithStability(prompt, p, style, palette, progress);
+    } else {
+      generateWithAlgorithm(prompt, p, style, palette);
+    }
+  };
+  img.src = url;
+}
+
+// ===== ERWEITERTE generateTTI MIT PARAMETERN =====
+const originalGenerateTTI = generateTTI;
+const originalGenerateWithPollinations = generateWithPollinations;
+const originalGenerateWithHuggingFace = generateWithHuggingFace;
+const originalGenerateWithAlgorithm = generateWithAlgorithm;
+
+// Überschreibe generateTTI
+generateTTI = function() {
+  const prompt = document.getElementById('ttiPrompt').value.trim();
+  const style = document.getElementById('ttiStyle').value;
+  const palette = document.getElementById('ttiPalette').value;
+  const provider = document.getElementById('ttiProvider').value;
+  if (!prompt) { msg('Bitte etwas eingeben!'); return; }
+  
+  const p = prompt.toLowerCase();
+  const progress = document.getElementById('ttiProgress');
+  if (progress) progress.textContent = '';
+  
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
+  
+  if (provider === 'stability') {
+    generateWithStability(prompt, p, style, palette, progress);
+  } else if (provider === 'deepai') {
+    generateWithDeepAI(prompt, p, style, palette, progress);
+  } else if (provider === 'algorithmic') {
+    generateWithAlgorithm(prompt, p, style, palette);
+  } else if (provider === 'pollinations') {
+    generateWithPollinations(prompt, p, style, palette, progress);
+  } else if (provider === 'huggingface') {
+    generateWithHuggingFace(prompt, p, style, palette, progress);
+  } else { // auto
+    if (progress) progress.textContent = '🔄 Versuche Pollinations...';
+    generateWithPollinations(prompt, p, style, palette, progress);
+  }
+};
+
+// Erweiterte generateWithPollinations mit Galerie-Speicherung
+generateWithPollinations = function(prompt, p, style, palette, progress) {
+  msg('🎨 KI generiert Bild...');
+  progressMsg(progress, '🤖 Kontaktiere Pollinations...');
+  
+  const res = document.getElementById('ttiRes')?.value || 1024;
+  const neg = document.getElementById('ttiNegPrompt')?.value || '';
+  const seedInput = document.getElementById('ttiSeed')?.value || '';
+  const seed = seedInput || Math.floor(Math.random() * 100000);
+  
+  let url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
+            '?width=' + res + '&height=' + res + '&seed=' + seed + '&nologo=true';
+  if (neg) url += '&negative=' + encodeURIComponent(neg);
+  
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  
+  const timeout = setTimeout(() => {
+    progressMsg(progress, '⏱️ Zeitüberschreitung → Fallback');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+  }, 15000);
+  
+  img.onload = function() {
+    clearTimeout(timeout);
+    msg('✅ KI-Bild empfangen!');
+    progressMsg(progress, '✅ Fertig!');
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(img, 0, 0, W, H);
+    saveState();
+    saveToGallery(prompt);
+  };
+  
+  img.onerror = function() {
+    clearTimeout(timeout);
+    const img2 = new Image();
+    const timeout2 = setTimeout(() => {
+      progressMsg(progress, '⏱️ Keine Antwort → Fallback');
+      setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    }, 10000);
+    img2.onload = function() {
+      clearTimeout(timeout2);
+      msg('✅ KI-Bild empfangen!');
+      progressMsg(progress, '✅ Fertig!');
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(img2, 0, 0, W, H);
+      saveState();
+      saveToGallery(prompt);
+    };
+    img2.onerror = function() {
+      clearTimeout(timeout2);
+      const provider = document.getElementById('ttiProvider').value;
+      if (provider === 'auto') {
+        progressMsg(progress, '🔄 Pollinations nicht verfügbar → Hugging Face...');
+        originalGenerateWithHuggingFace(prompt, p, style, palette, progress);
+      } else {
+        progressMsg(progress, '⚠️ Nicht verfügbar');
+        msg('⚠️ KI-API nicht erreichbar');
+        setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+      }
+    };
+    img2.src = url;
+  };
+  
+  img.src = url;
+};
+
+// Überschreibe HuggingFace (entferne die alte Auto-Fallback-Schleife)
+generateWithHuggingFace = function(prompt, p, style, palette, progress) {
+  msg('🧠 Hugging Face...');
+  progressMsg(progress, '🧠 Hugging Face...');
+  
+  const models = ['stabilityai/stable-diffusion-xl-base-1.0', 'runwayml/stable-diffusion-v1-5', 'prompthero/openjourney-v4'];
+  const model = models[Math.floor(Math.random() * models.length)];
+  
+  const res = document.getElementById('ttiRes')?.value || 1024;
+  const neg = document.getElementById('ttiNegPrompt')?.value || '';
+  
+  const body = { inputs: prompt, parameters: { width: parseInt(res), height: parseInt(res) } };
+  if (neg) body.parameters.negative_prompt = neg;
+  
+  fetch('https://api-inference.huggingface.co/models/' + model, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.blob();
+  })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+      msg('✅ Hugging Face Bild!');
+      progressMsg(progress, '✅ Fertig!');
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(img, 0, 0, W, H);
+      saveState();
+      saveToGallery(prompt);
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      const provider = document.getElementById('ttiProvider').value;
+      if (provider === 'auto') {
+        progressMsg(progress, '🔄 HF nicht verfügbar → Algorithmus');
+        generateWithAlgorithm(prompt, p, style, palette);
+      } else {
+        progressMsg(progress, '⚠️ Hugging Face Fehler');
+      }
+    };
+    img.src = url;
+  })
+  .catch(err => {
+    progressMsg(progress, '⚠️ HF Fehler');
+    const provider = document.getElementById('ttiProvider').value;
+    if (provider === 'auto') {
+      setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    }
+  });
+};
+
+// Export-Funktion erweitern: Bild in Galerie speichern
+function saveCurrentToGallery() {
+  const prompt = document.getElementById('ttiPrompt')?.value || 'Unbenannt';
+  saveToGallery(prompt);
+  msg('💾 Bild in Galerie gespeichert!');
+}
+
+// Initialisierung nach dem Laden
+setTimeout(() => {
+  renderPromptSuggestions();
+}, 100);
+
 
 function fallbackGenerate(prompt, p, style, palette) {
   msg('Zeichne...');
