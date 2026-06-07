@@ -1,6 +1,6 @@
 {
-  "name": "MalStudio \u2728 KI-Bild",
-  "short_name": "MalStudio \u2728",
+  "name": "MalStudio 🎨",
+  "short_name": "MalStudio 🎨",
   "description": "KI-Bildgenerator mit Pollinations, Hugging Face & Algorithmus",
   "start_url": "https://derkarnix-hue.github.io/malstudio/malstudio.html",
   "scope": "https://derkarnix-hue.github.io/malstudio/",
