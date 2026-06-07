@@ -142,11 +142,19 @@ function renderControls() {
               <option value=pollinations>🤖 Pollinations (KI)</option>
               <option value=auto>🔄 Auto (KI → Algorithmus)</option>
             </select></label>
+            <button onclick="toggleLLMKeyPanel()" title="API-Key" style="background:#6366f1;">🔑</button>
             <button onclick="enhanceWithLLM()" title="Prompt mit KI verbessern" style="background:#f59e0b;">🧠 LLM</button>
             <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 GENERIEREN</button>
             <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
           </div>
           <div id="ttiProgress" style="color:#8b5cf6;font-size:12px;margin-top:4px;"></div>
+          <div id="llmKeyPanel" style="display:none;background:#1e293b;border-radius:8px;padding:8px;margin-top:4px;">
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">🔑 OpenRouter API-Key (optional – für bessere Prompt-Verbesserung)</div>
+            <div style="display:flex;gap:6px;">
+              <input type="password" id="llmApiKey" style="flex:1;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:4px 8px;font-size:12px;" placeholder="sk-or-v1-...">
+              <button onclick="saveLLMKey()" style="background:#10b981;font-size:11px;padding:4px 10px;">💾</button>
+            </div>
+          </div>
         </div>
       `;
       break;
@@ -1385,6 +1393,57 @@ function fallbackEnhance(prompt, ta, progress) {
   msg('\u2728 Prompt lokal verbessert');
   if (progress) progress.textContent = '\u2728 Prompt lokal verbessert';
 }
+
+
+
+function saveLLMKey() {
+  const key = document.getElementById('llmApiKey').value.trim();
+  if (key) {
+    localStorage.setItem('malstudio_openrouter_key', key);
+    msg('\u2705 API-Key gespeichert!');
+  } else {
+    localStorage.removeItem('malstudio_openrouter_key');
+    msg('Key entfernt');
+  }
+}
+
+function toggleLLMKeyPanel() {
+  const p = document.getElementById('llmKeyPanel');
+  if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  // Vorhandenen Key laden
+  const stored = localStorage.getItem('malstudio_openrouter_key') || '';
+  document.getElementById('llmApiKey').value = stored;
+}
+
+// Key-Button in der Toolbar-Leiste
+function addLLMKeyButton() {
+  const c = document.getElementById('controls');
+  if (!c || document.getElementById('llmKeyBtn')) return;
+  // Wird über den LLM-Button im tti-Bereich gesteuert
+}
+
+
+
+// API-Key aus URL-Parameter speichern
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get('key');
+  if (key && key.startsWith('sk-or-')) {
+    localStorage.setItem('malstudio_openrouter_key', key);
+    msg('\u2705 API-Key automatisch gespeichert!');
+    // Key aus URL entfernen ohne Seite neu zu laden
+    const url = new URL(window.location);
+    url.searchParams.delete('key');
+    window.history.replaceState({}, '', url);
+  }
+  // Gespeicherten Key anzeigen
+  const stored = localStorage.getItem('malstudio_openrouter_key');
+  if (stored) {
+    const input = document.getElementById('llmApiKey');
+    if (input) input.value = stored;
+  }
+})();
 
 </script>
 </body>
