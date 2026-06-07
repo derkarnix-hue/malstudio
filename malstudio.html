@@ -2,9 +2,6 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="3🍀">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>🎨 MalStudio – 13 Bildwerkzeuge</title>
 <style>
@@ -35,23 +32,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .ttibox .ttirow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ttibox .ttirow button { flex-shrink: 0; }
 </style>
-/* === KI-Bild Erweiterungen === */
-.tti-extras { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin-top: 4px; }
-.tti-extras label { font-size: 12px; color: #94a3b8; display: flex; align-items: center; gap: 4px; }
-.tti-extras select, .tti-extras input { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 4px; padding: 2px 6px; font-size: 12px; }
-.tti-extras input[type=text] { width: 140px; }
-.tti-batch { display: flex; gap: 6px; flex-wrap: wrap; }
-.tti-batch .batch-img { width: 180px; height: 135px; object-fit: cover; border-radius: 8px; border: 2px solid #334155; cursor: pointer; transition: all .2s; }
-.tti-batch .batch-img:hover { border-color: #10b981; transform: scale(1.02); }
-.tti-batch .batch-img.selected { border-color: #8b5cf6; }
-.gallery-wrap { display: flex; flex-wrap: wrap; gap: 8px; max-height: 300px; overflow-y: auto; padding: 8px; background: #1e293b; border-radius: 8px; width: 100%; }
-.gallery-wrap img { width: 100px; height: 75px; object-fit: cover; border-radius: 4px; border: 2px solid #334155; cursor: pointer; transition: all .2s; }
-.gallery-wrap img:hover { border-color: #10b981; transform: scale(1.05); }
-.gallery-wrap .gallery-empty { color: #475569; font-size: 13px; padding: 20px; text-align: center; width: 100%; }
-.prompt-suggestions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-.prompt-suggestions button { background: #334155; border: none; color: #94a3b8; padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all .2s; }
-.prompt-suggestions button:hover { background: #475569; color: #fff; }
-
 </head>
 <body>
 
@@ -138,8 +118,7 @@ function renderControls() {
     case 'tti':
       html = `
         <div class="ttibox">
-          <textarea id="ttiPrompt" placeholder="Beschreibe, was du sehen willst, z.B.:&#10;● Sonnenuntergang über den Bergen&#10;● Abstrakte Kunst in Blau und Gold"></textarea>
-          <div class="prompt-suggestions" id="promptSuggestions"></div>
+          <textarea id="ttiPrompt" placeholder="Beschreibe, was du sehen willst, z.B.:&#10;● Sonnenuntergang über den Bergen&#10;● Abstrakte Kunst in Blau und Gold&#10;● Ein Kreis aus bunten Dreiecken&#10;● Sternenhimmel mit leuchtenden Farben"></textarea>
           <div class="ttirow">
             <label>Stil <select id=ttiStyle>
               <option value=auto>Automatisch</option>
@@ -149,11 +128,8 @@ function renderControls() {
               <option value=space>Weltraum</option>
               <option value=pattern>Muster</option>
               <option value=colorful>Bunt</option>
-              <option value=realistic>Realistisch</option>
-              <option value=anime>Anime</option>
-              <option value=oilpainting>Ölgemälde</option>
             </select></label>
-            <label>Farbe <select id=ttiPalette>
+            <label>Farben <select id=ttiPalette>
               <option value=auto>Automatisch</option>
               <option value=warm>Warm (Rot/Gold)</option>
               <option value=cool>Kalt (Blau/Grün)</option>
@@ -161,61 +137,16 @@ function renderControls() {
               <option value=pastel>Pastell</option>
               <option value=mono>Monochrom</option>
             </select></label>
-            <label>KI <select id=ttiProvider onchange="onProviderChange()">
+            <label>Generator <select id=ttiProvider>
               <option value=auto>🔄 Auto (KI → Algorithmus)</option>
-              <option value=pollinations>🤖 Pollinations (kein Key)</option>
-              <option value=huggingface>🧠 Hugging Face (7 Modelle)</option>
-              <option value=githubmodels>🐙 GitHub Models (FLUX/SDXL)</option>
-              <option value=deepai>🔵 DeepAI (Free Key)</option>
-              <option value=algorithmic>🎨 Algorithmisch (Offline)</option>
+              <option value=pollinations>🤖 Pollinations (KI)</option>
+              <option value=huggingface>🧠 Hugging Face (KI)</option>
+              <option value=algorithmic>🎨 Algorithmisch</option>
             </select></label>
-            <button onclick="toggleHFModels()" title="HF-Modell wählen" style="background:#8b5cf6;">🧠 HF</button>
-            <button onclick="toggleApiKeys()" title="API-Keys" style="background:#6366f1;">🔑</button>
-            <button onclick="enhancePrompt()" title="Prompt verbessern" style="background:#f59e0b;">✨</button>
-            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 GENERIEREN</button>
-            <button onclick="batchGenerate()" title="4 Varianten" style="background:#06b6d4;">🎲 Batch</button>
-            <button onclick="toggleGallery()" title="Galerie" style="background:#ec4899;">🖼</button>
+            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 ECHTES KI-BILD</button>
             <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
           </div>
-          <div class="tti-extras">
-            <label>Auflösung <select id=ttiRes>
-              <option value=512>512×512</option>
-              <option value=768>768×768</option>
-              <option value=1024 selected>1024×1024</option>
-            </select></label>
-            <label>Schritte <select id=ttiSteps>
-              <option value=20>20</option>
-              <option value=30 selected>30</option>
-              <option value=50>50</option>
-            </select></label>
-            <label>Seed <input type=text id=ttiSeed placeholder="zufällig" size=8></label>
-            <label>Negativ <input type=text id=ttiNegPrompt placeholder="schlecht, flau..." size=18></label>
-          </div>
-          <div id="ttiBatch" class="tti-batch" style="display:none;margin-top:6px;"></div>
-          <div id="ttiGallery" class="gallery-wrap" style="display:none;margin-top:6px;"></div>
           <div id="ttiProgress" style="color:#8b5cf6;font-size:12px;margin-top:4px;"></div>
-          <div id="hfModelPanel" style="display:none;background:#1e293b;border-radius:8px;padding:8px;margin-top:4px;">
-            <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">🧠 Hugging Face Modell wählen:</div>
-            <select id="hfModelSelect" style="width:100%;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:4px 8px;font-size:12px;">
-              <option value="stabilityai/stable-diffusion-xl-base-1.0">SD XL Base 1.0</option>
-              <option value="black-forest-labs/FLUX.1-dev">FLUX.1-dev</option>
-              <option value="runwayml/stable-diffusion-v1-5">SD 1.5</option>
-              <option value="prompthero/openjourney-v4">OpenJourney v4</option>
-              <option value="dreamshaper/dreamshaper-xl-turbo">DreamShaper XL Turbo</option>
-              <option value="ByteDance/SDXL-Lightning">SDXL Lightning</option>
-              <option value="stabilityai/stable-diffusion-2-1">SD 2.1</option>
-            </select>
-            <div style="font-size:11px;color:#64748b;margin-top:4px;">Manche Modelle brauchen einen HF-Token</div>
-          </div>
-          <div id="apiKeysPanel" style="display:none;background:#1e293b;border-radius:8px;padding:10px;margin-top:4px;">
-            <div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">🔑 API-Keys (optional – werden nur im Browser gespeichert)</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-              <label style="font-size:11px;color:#94a3b8;">🐙 GitHub Token <input type="password" id="githubToken" style="width:120px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:3px 6px;font-size:11px;" placeholder="ghp_..."></label>
-              <label style="font-size:11px;color:#94a3b8;">🔵 DeepAI Key <input type="password" id="deepaiKey" style="width:100px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:3px 6px;font-size:11px;" placeholder="quickapi-..."></label>
-              <label style="font-size:11px;color:#94a3b8;">🧠 HF Token <input type="password" id="hfToken" style="width:100px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:3px 6px;font-size:11px;" placeholder="hf_..."></label>
-              <button onclick="saveApiKeys()" style="background:#10b981;font-size:11px;padding:4px 10px;">💾 Speichern</button>
-            </div>
-          </div>
         </div>
       `;
       break;
@@ -321,242 +252,7 @@ function renderControls() {
 
 // ===== TEXT-TO-IMAGE GENERATOR (Universal) =====
 
-
-
-
-// ===== PROMPT-VERBESSERUNG =====
-const promptTemplates = [
-  { cat:'Tier', prompts:['Eine majestätische schwarze Katze mit grünen Augen, Nahaufnahme, weiches Studio-Licht, fotorealistisch, 4K', 'Ein treuer Golden Retriever auf einer grünen Wiese, sonniges Wetter, weicher Fokus', 'Ein exotischer Papagei mit bunten Federn, tropischer Regenwald, Makroaufnahme'] },
-  { cat:'Natur', prompts:['Sonnenuntergang über schneebedeckten Bergen, Spiegelung in einem See, friedlich, Ölgemälde', 'Ein geheimnisvoller Wald im Nebel, Sonnenstrahlen brechen durch die Bäume, magisch', 'Ein einsamer Baum auf einer grünen Wiese unter einem Sternenhimmel, Milchstraße'] },
-  { cat:'Fantasy', prompts:['Ein gläserner Turm im Nebel, umgeben von schwebenden Inseln, digitale Kunst', 'Eine freundliche Drachin mit schillernden Schuppen sitzt auf einem Schatzhügel', 'Ein Einhorn im Mondschein, dessen Horn hell leuchtet, magischer Wald, Fantasy'] },
-  { cat:'Porträt', prompts:['Porträt einer jungen Frau mit blauen Augen, weiches Fensterlicht, Ölgemälde-Stil', 'Ein alter Mann mit Bart, tiefe Falten, dramatisches Seitenlicht, Schwarzweiß', 'Kind mit Sommersprossen, warmes Sonnenlicht, Nahaufnahme, zarter Ausdruck'] },
-  { cat:'Raumfahrt', prompts:['Astronaut auf dem Mars, Erde am Himmel, Science-Fiction, detailreich', 'Eine Raumstation umkreist einen Saturn-artigen Planeten mit Ringen, digital', 'Start einer Rakete bei Nacht, Feuer und Rauch, dramatische Beleuchtung'] },
-  { cat:'Abstrakt', prompts:['Abstrakte fließende Formen in Neonfarben, digitales Kunstwerk, glatt', 'Ein Kreis aus bunten geometrischen Formen, Mandala-Stil, symmetrisch', 'Farbexplosion aus Blau, Gold und Violett, flüssige Bewegungen'] },
-];
-
-function enhancePrompt() {
-  const ta = document.getElementById('ttiPrompt');
-  const current = ta.value.trim();
-  if (!current || current.length < 5) {
-    // Zufälligen Prompt aus den Templates wählen
-    const cats = promptTemplates;
-    const cat = cats[Math.floor(Math.random() * cats.length)];
-    const pick = cat.prompts[Math.floor(Math.random() * cat.prompts.length)];
-    ta.value = pick;
-  } else {
-    // Prompt aufwerten: Schlüsselwörter hinzufügen
-    let enhanced = current;
-    const extras = ['4K', 'detailed', 'sharp focus', 'masterpiece'];
-    if (!enhanced.toLowerCase().includes('4k')) enhanced += ', ' + extras[Math.floor(Math.random() * extras.length)];
-    if (!enhanced.toLowerCase().includes('detailed')) enhanced += ', hochdetailliert';
-    ta.value = enhanced;
-  }
-  ta.focus();
-  msg('✨ Prompt verbessert!');
-}
-
-function renderPromptSuggestions() {
-  const container = document.getElementById('promptSuggestions');
-  if (!container) return;
-  const cats = ['Tier', 'Natur', 'Fantasy', 'Porträt', 'Abstrakt'];
-  container.innerHTML = cats.map(c => '<button onclick="setSuggestPrompt(\'' + c + '\')">' + c + '</button> ').join('');
-}
-
-function setSuggestPrompt(cat) {
-  const found = promptTemplates.find(t => t.cat === cat);
-  if (found) {
-    const pick = found.prompts[Math.floor(Math.random() * found.prompts.length)];
-    document.getElementById('ttiPrompt').value = pick;
-    msg('💡 Prompt geladen: ' + cat);
-  }
-}
-
-// ===== GALERIE =====
-let galleryLoaded = false;
-
-function toggleGallery() {
-  const g = document.getElementById('ttiGallery');
-  if (!g) return;
-  if (g.style.display !== 'none') { g.style.display = 'none'; return; }
-  g.style.display = 'flex';
-  renderGallery();
-}
-
-function renderGallery() {
-  const g = document.getElementById('ttiGallery');
-  if (!g) return;
-  let items = [];
-  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
-  if (items.length === 0) {
-    g.innerHTML = '<div class="gallery-empty">Keine gespeicherten Bilder. Generiere ein Bild und speichere es!</div>';
-    return;
-  }
-  g.innerHTML = items.slice().reverse().map((item, i) => {
-    const idx = items.length - 1 - i;
-    return '<img src="' + item.data + '" title="' + item.prompt.substring(0, 30) + '" onclick="loadGalleryImage(' + idx + ')" ondblclick="deleteGalleryImage(' + idx + ')">';
-  }).join('') + '<div style="width:100%;font-size:11px;color:#475569;margin-top:4px">' + items.length + ' Bilder • Klick=laden • Doppelklick=löschen</div>';
-}
-
-function saveToGallery(prompt) {
-  const data = canvas.toDataURL('image/jpeg', 0.8);
-  let items = [];
-  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
-  items.push({ data: data, prompt: prompt, date: Date.now() });
-  // Max 50 Bilder
-  if (items.length > 50) items = items.slice(items.length - 50);
-  localStorage.setItem('malstudio_gallery', JSON.stringify(items));
-  msg('💾 In Galerie gespeichert!');
-}
-
-function loadGalleryImage(idx) {
-  let items = [];
-  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
-  if (idx >= 0 && idx < items.length) {
-    const img = new Image();
-    img.onload = function() {
-      ctx.clearRect(0,0,W,H);
-      ctx.drawImage(img, 0, 0, W, H);
-      saveState();
-      msg('📂 Galeriebild geladen');
-    };
-    img.src = items[idx].data;
-  }
-}
-
-function deleteGalleryImage(idx) {
-  let items = [];
-  try { items = JSON.parse(localStorage.getItem('malstudio_gallery') || '[]'); } catch(e) {}
-  if (idx >= 0 && idx < items.length) {
-    items.splice(idx, 1);
-    localStorage.setItem('malstudio_gallery', JSON.stringify(items));
-    renderGallery();
-    msg('🗑 Gelöscht');
-  }
-}
-
-// ===== BATCH-GENERIERUNG =====
-function batchGenerate() {
-  const prompt = document.getElementById('ttiPrompt').value.trim();
-  if (!prompt) { msg('Bitte zuerst einen Prompt eingeben!'); return; }
-  const batchDiv = document.getElementById('ttiBatch');
-  if (!batchDiv) return;
-  batchDiv.style.display = 'flex';
-  batchDiv.innerHTML = '<div style="color:#94a3b8;font-size:13px;width:100%;">🔄 Generiere 4 Varianten...</div>';
-  
-  const seeds = [
-    Math.floor(Math.random() * 100000),
-    Math.floor(Math.random() * 100000),
-    Math.floor(Math.random() * 100000),
-    Math.floor(Math.random() * 100000)
-  ];
-  
-  let loaded = 0;
-  seeds.forEach((seed, i) => {
-    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
-                '?width=512&height=512&seed=' + seed + '&nologo=true';
-    const img = new Image();
-    img.className = 'batch-img';
-    img.title = 'Variante ' + (i+1) + ' (Seed: ' + seed + ')';
-    img.onload = function() {
-      loaded++;
-      if (loaded >= seeds.length) {
-        batchDiv.querySelector('div')?.remove();
-      }
-    };
-    img.onclick = function() {
-      // Bild in den Hauptcanvas laden
-      const img2 = new Image();
-      img2.onload = function() {
-        ctx.clearRect(0,0,W,H);
-        ctx.drawImage(img2, 0, 0, W, H);
-        saveState();
-        msg('📂 Batch-Variante ' + (i+1) + ' geladen');
-      };
-      img2.src = img.src;
-      document.querySelectorAll('.batch-img').forEach(b => b.classList.remove('selected'));
-      img.classList.add('selected');
-    };
-    batchDiv.appendChild(img);
-    // Ladeverzögerung um Rate-Limiting zu vermeiden
-    setTimeout(() => { img.src = url; }, i * 2000);
-  });
-  
-  msg('🎲 Batch: ' + seeds.length + ' Varianten werden generiert...');
-}
-
-// ===== NEUE PROVIDER =====
-function generateWithStability(prompt, p, style, palette, progress) {
-  msg('🟣 Stability AI wird kontaktiert...');
-  progressMsg(progress, '🟣 Stability AI (SDXL)...');
-  
-  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt + ', cinematic, detailed, sharp focus') + 
-              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true&model=flux';
-  
-  const img = new Image();
-  const timeout = setTimeout(() => {
-    progressMsg(progress, '⏱️ Stability nicht verfügbar → Fallback');
-    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-  }, 15000);
-  
-  img.onload = function() {
-    clearTimeout(timeout);
-    msg('✅ Bild generiert!');
-    progressMsg(progress, '✅ Fertig!');
-    ctx.clearRect(0,0,W,H);
-    ctx.drawImage(img, 0, 0, W, H);
-    saveState();
-    // Automatisch in Galerie speichern
-    saveToGallery(prompt);
-  };
-  img.onerror = function() {
-    clearTimeout(timeout);
-    progressMsg(progress, '⚠️ Stability nicht verfügbar');
-    if (document.getElementById('ttiProvider').value === 'auto') {
-      generateWithHuggingFace(prompt, p, style, palette, progress);
-    } else {
-      generateWithAlgorithm(prompt, p, style, palette);
-    }
-  };
-  img.src = url;
-}
-
-function generateWithDeepAI(prompt, p, style, palette, progress) {
-  msg('🔵 DeepAI wird kontaktiert...');
-  progressMsg(progress, '🔵 DeepAI (SDXL)...');
-  
-  // DeepAI verwendet Pollinations als Fallback da DeepAI API-Key braucht
-  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt + ', detailed, masterpiece') + 
-              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true';
-  
-  const img = new Image();
-  const timeout = setTimeout(() => {
-    progressMsg(progress, '⏱️ DeepAI nicht verfügbar → Fallback');
-    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-  }, 15000);
-  
-  img.onload = function() {
-    clearTimeout(timeout);
-    msg('✅ Bild generiert!');
-    progressMsg(progress, '✅ Fertig!');
-    ctx.clearRect(0,0,W,H);
-    ctx.drawImage(img, 0, 0, W, H);
-    saveState();
-    saveToGallery(prompt);
-  };
-  img.onerror = function() {
-    clearTimeout(timeout);
-    progressMsg(progress, '⚠️ DeepAI nicht verfügbar');
-    if (document.getElementById('ttiProvider').value === 'auto') {
-      generateWithStability(prompt, p, style, palette, progress);
-    } else {
-      generateWithAlgorithm(prompt, p, style, palette);
-    }
-  };
-  img.src = url;
-}
-
-// Überschreibe generateTTI
-generateTTI = function() {
+function generateTTI() {
   const prompt = document.getElementById('ttiPrompt').value.trim();
   const style = document.getElementById('ttiStyle').value;
   const palette = document.getElementById('ttiPalette').value;
@@ -569,41 +265,34 @@ generateTTI = function() {
   
   ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
   
-  if (provider === 'stability') {
-    generateWithStability(prompt, p, style, palette, progress);
-  } else if (provider === 'deepai') {
-    generateWithDeepAI(prompt, p, style, palette, progress);
-  } else if (provider === 'algorithmic') {
+  if (provider === 'algorithmic') {
     generateWithAlgorithm(prompt, p, style, palette);
   } else if (provider === 'pollinations') {
     generateWithPollinations(prompt, p, style, palette, progress);
   } else if (provider === 'huggingface') {
     generateWithHuggingFace(prompt, p, style, palette, progress);
-  } else { // auto
-    if (progress) progress.textContent = '🔄 Versuche Pollinations...';
+  } else {
+    if (progress) progress.textContent = '🔄 Versuche Pollinations KI...';
     generateWithPollinations(prompt, p, style, palette, progress);
   }
-};
+}
 
-// Erweiterte generateWithPollinations mit Galerie-Speicherung
-generateWithPollinations = function(prompt, p, style, palette, progress) {
+function progressMsg(el, text) {
+  if (el) el.textContent = text;
+}
+
+function generateWithPollinations(prompt, p, style, palette, progress) {
   msg('🎨 KI generiert Bild...');
   progressMsg(progress, '🤖 Kontaktiere Pollinations...');
   
-  const res = document.getElementById('ttiRes')?.value || 1024;
-  const neg = document.getElementById('ttiNegPrompt')?.value || '';
-  const seedInput = document.getElementById('ttiSeed')?.value || '';
-  const seed = seedInput || Math.floor(Math.random() * 100000);
-  
-  let url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
-            '?width=' + res + '&height=' + res + '&seed=' + seed + '&nologo=true';
-  if (neg) url += '&negative=' + encodeURIComponent(neg);
+  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
+              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true';
   
   const img = new Image();
   img.crossOrigin = 'anonymous';
   
   const timeout = setTimeout(() => {
-    progressMsg(progress, '⏱️ Zeitüberschreitung → Fallback');
+    progressMsg(progress, '⏱️ Pollinations Zeitüberschreitung → Fallback');
     setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
   }, 15000);
   
@@ -614,14 +303,13 @@ generateWithPollinations = function(prompt, p, style, palette, progress) {
     ctx.clearRect(0,0,W,H);
     ctx.drawImage(img, 0, 0, W, H);
     saveState();
-    saveToGallery(prompt);
   };
   
   img.onerror = function() {
     clearTimeout(timeout);
     const img2 = new Image();
     const timeout2 = setTimeout(() => {
-      progressMsg(progress, '⏱️ Keine Antwort → Fallback');
+      progressMsg(progress, '⏱️ Keine Antwort → Algorithmus');
       setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
     }, 10000);
     img2.onload = function() {
@@ -631,16 +319,14 @@ generateWithPollinations = function(prompt, p, style, palette, progress) {
       ctx.clearRect(0,0,W,H);
       ctx.drawImage(img2, 0, 0, W, H);
       saveState();
-      saveToGallery(prompt);
     };
     img2.onerror = function() {
       clearTimeout(timeout2);
-      const provider = document.getElementById('ttiProvider').value;
-      if (provider === 'auto') {
+      if (document.getElementById('ttiProvider').value === 'auto') {
         progressMsg(progress, '🔄 Pollinations nicht verfügbar → Hugging Face...');
         generateWithHuggingFace(prompt, p, style, palette, progress);
       } else {
-        progressMsg(progress, '⚠️ Nicht verfügbar');
+        progressMsg(progress, '⚠️ Pollinations nicht verfügbar');
         msg('⚠️ KI-API nicht erreichbar');
         setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
       }
@@ -649,26 +335,19 @@ generateWithPollinations = function(prompt, p, style, palette, progress) {
   };
   
   img.src = url;
-};
+}
 
-// Überschreibe HuggingFace (entferne die alte Auto-Fallback-Schleife)
-generateWithHuggingFace = function(prompt, p, style, palette, progress) {
-  msg('🧠 Hugging Face...');
-  progressMsg(progress, '🧠 Hugging Face...');
+function generateWithHuggingFace(prompt, p, style, palette, progress) {
+  msg('🧠 Hugging Face generiert...');
+  progressMsg(progress, '🧠 Kontaktiere Hugging Face...');
   
   const models = ['stabilityai/stable-diffusion-xl-base-1.0', 'runwayml/stable-diffusion-v1-5', 'prompthero/openjourney-v4'];
   const model = models[Math.floor(Math.random() * models.length)];
   
-  const res = document.getElementById('ttiRes')?.value || 1024;
-  const neg = document.getElementById('ttiNegPrompt')?.value || '';
-  
-  const body = { inputs: prompt, parameters: { width: parseInt(res), height: parseInt(res) } };
-  if (neg) body.parameters.negative_prompt = neg;
-  
   fetch('https://api-inference.huggingface.co/models/' + model, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ inputs: prompt })
   })
   .then(res => {
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -678,47 +357,42 @@ generateWithHuggingFace = function(prompt, p, style, palette, progress) {
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = function() {
-      msg('✅ Hugging Face Bild!');
+      msg('✅ Hugging Face Bild empfangen!');
       progressMsg(progress, '✅ Fertig!');
       ctx.clearRect(0,0,W,H);
       ctx.drawImage(img, 0, 0, W, H);
       saveState();
-      saveToGallery(prompt);
       URL.revokeObjectURL(url);
     };
     img.onerror = function() {
       URL.revokeObjectURL(url);
-      const provider = document.getElementById('ttiProvider').value;
-      if (provider === 'auto') {
-        progressMsg(progress, '🔄 HF nicht verfügbar → Algorithmus');
+      if (document.getElementById('ttiProvider').value === 'auto') {
+        progressMsg(progress, '🔄 Hugging Face nicht verfügbar → Algorithmus');
         generateWithAlgorithm(prompt, p, style, palette);
       } else {
         progressMsg(progress, '⚠️ Hugging Face Fehler');
+        msg('⚠️ KI-API Fehler');
       }
     };
     img.src = url;
   })
   .catch(err => {
-    progressMsg(progress, '⚠️ HF Fehler');
-    const provider = document.getElementById('ttiProvider').value;
-    if (provider === 'auto') {
+    progressMsg(progress, '⚠️ HF: ' + err.message.substring(0, 20));
+    if (document.getElementById('ttiProvider').value === 'auto') {
       setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    } else {
+      msg('⚠️ Hugging Face: ' + err.message.substring(0, 40));
     }
   });
-};
-
-// Export-Funktion erweitern: Bild in Galerie speichern
-function saveCurrentToGallery() {
-  const prompt = document.getElementById('ttiPrompt')?.value || 'Unbenannt';
-  saveToGallery(prompt);
-  msg('💾 Bild in Galerie gespeichert!');
 }
 
-// Initialisierung nach dem Laden
-setTimeout(() => {
-  renderPromptSuggestions();
-}, 100);
-
+function generateWithAlgorithm(prompt, p, style, palette) {
+  msg('🎨 Zeichne...');
+  const progress = document.getElementById('ttiProgress');
+  if (progress) progress.textContent = '🎨 Zeichne algorithmisch...';
+  fallbackGenerate(prompt, p, style, palette);
+  if (progress) progress.textContent = '✅ Fertig (algorithmisch)';
+}
 
 function fallbackGenerate(prompt, p, style, palette) {
   msg('Zeichne...');
@@ -840,135 +514,133 @@ function noise2D(x,y) {
 function hsl(h,s,l){return "hsl("+h+","+s+"%,"+l+"%)";}
 
 function drawCircle(x,y,r,col){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();}
+
+function gradCircle(x,y,r,c1,c2){const g=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();}
+function gradRect(x,y,w,h,c1,c2,d){const g=ctx.createLinearGradient(x+w/2,y,x+w/2,y+h);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.fillStyle=g;ctx.fillRect(x,y,w,h);}
+function gradEllipse(x,y,rx,ry,c1,c2){const g=ctx.createRadialGradient(x,y-ry*0.2,0,x,y,Math.max(rx,ry));g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();}
+function noShadow(){ctx.shadowColor='transparent';ctx.shadowBlur=0;}
+
 function drawEllipse(x,y,rx,ry,col){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();}
 
 // KATZE
-function drawCat(p,colors){
-  const cx=W/2,cy=H/2-30;
-  const col=/#\b(schwarz|black|samtschwarz)\b/.test(p)?'#1a1a2e':/#\b(orange|rot|ginger)\b/.test(p)?'#d4763a':/#\b(wei\u00df|white)\b/.test(p)?'#e8e8e8':/#\b(grau|grey|gray)\b/.test(p)?'#8a8a8a':colors[0];
-  const eye='#22c55e';
-  
-  // K\u00f6rper
-  ctx.fillStyle=col;
-  ctx.beginPath();ctx.ellipse(cx,cy+60,90,70,0,0,Math.PI*2);ctx.fill();
-  // Kopf
-  ctx.beginPath();ctx.ellipse(cx,cy-20,55,50,0,0,Math.PI*2);ctx.fill();
-  // Ohren
-  ctx.beginPath();ctx.moveTo(cx-45,cy-40);ctx.lineTo(cx-30,cy-85);ctx.lineTo(cx-15,cy-50);ctx.fill();
-  ctx.beginPath();ctx.moveTo(cx+45,cy-40);ctx.lineTo(cx+30,cy-85);ctx.lineTo(cx+15,cy-50);ctx.fill();
-  // Innenohren
-  ctx.fillStyle='#f9a8d4';ctx.beginPath();ctx.moveTo(cx-40,cy-45);ctx.lineTo(cx-30,cy-75);ctx.lineTo(cx-20,cy-50);ctx.fill();
-  ctx.beginPath();ctx.moveTo(cx+40,cy-45);ctx.lineTo(cx+30,cy-75);ctx.lineTo(cx+20,cy-50);ctx.fill();
-  // Augen
-  ctx.fillStyle='#fff';drawEllipse(cx-20,cy-25,16,18,'#fff');drawEllipse(cx+20,cy-25,16,18,'#fff');
-  ctx.fillStyle=eye;drawEllipse(cx-20,cy-25,12,16,eye);drawEllipse(cx+20,cy-25,12,16,eye);
-  ctx.fillStyle='#000';drawCircle(cx-20,cy-22,6,'#000');drawCircle(cx+20,cy-22,6,'#000');
-  ctx.fillStyle='#fff';drawCircle(cx-17,cy-28,3,'#fff');drawCircle(cx+23,cy-28,3,'#fff');
-  // Nase
-  ctx.fillStyle='#f9a8d4';ctx.beginPath();ctx.moveTo(cx,cy-8);ctx.lineTo(cx-6,cy-2);ctx.lineTo(cx+6,cy-2);ctx.fill();
-  // Mund
-  ctx.strokeStyle='#4a4a4a';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.moveTo(cx,cy-2);ctx.lineTo(cx,cy+5);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.quadraticCurveTo(cx-15,cy+15,cx-20,cy+5);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.quadraticCurveTo(cx+15,cy+15,cx+20,cy+5);ctx.stroke();
-  // Schnurrhaare
-  ctx.strokeStyle='#aaa';ctx.lineWidth=1;
-  for(let i=-5;i<=5;i+=3){
-    ctx.beginPath();ctx.moveTo(cx-10,cy+i*1.2);ctx.lineTo(cx-60,cy+i*1.5-15);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cx+10,cy+i*1.2);ctx.lineTo(cx+60,cy+i*1.5-15);ctx.stroke();
-  }
-  // Schwanz
-  ctx.strokeStyle=col;ctx.lineWidth=14;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(cx+80,cy+40);ctx.quadraticCurveTo(cx+130,cy-50,cx+60,cy-70);ctx.stroke();
-  // Pfoten
-  ctx.fillStyle=col;
-  drawEllipse(cx-40,cy+120,20,12,col);drawEllipse(cx+40,cy+120,20,12,col);
-  drawEllipse(cx-30,cy+120,10,6,'#f9a8d4');drawEllipse(cx+30,cy+120,10,6,'#f9a8d4');
+function drawCat(p,colors) {
+  const cx=W/2,cy=H/2,bg=getBgColor(p);
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  gradCircle(cx+10,cy+70,80,'rgba(0,0,0,0.3)','rgba(0,0,0,0)');
+  gradEllipse(cx+10,cy+30,75,50,colors[0]||'#1a1a1a',colors[1]||'#2a2a2a');
+  gradEllipse(cx+5,cy-30,50,42,colors[0]||'#1a1a1a',colors[2]||'#333');
+  ctx.fillStyle=colors[3]||'#f0c0c0';
+  ctx.beginPath();ctx.moveTo(cx-30,cy-60);ctx.lineTo(cx-45,cy-85);ctx.lineTo(cx-10,cy-60);ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+40,cy-60);ctx.lineTo(cx+55,cy-85);ctx.lineTo(cx+20,cy-60);ctx.fill();
+  ctx.fillStyle=colors[0]||'#1a1a1a';
+  ctx.beginPath();ctx.moveTo(cx-35,cy-60);ctx.lineTo(cx-50,cy-90);ctx.lineTo(cx-15,cy-60);ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+45,cy-60);ctx.lineTo(cx+60,cy-90);ctx.lineTo(cx+25,cy-60);ctx.fill();
+  gradCircle(cx-18,cy-35,14,'#44ff44','#008800');
+  gradCircle(cx+28,cy-35,14,'#44ff44','#008800');
+  ctx.fillStyle='#000';ctx.fillRect(cx-20,cy-42,5,14);ctx.fillRect(cx+26,cy-42,5,14);
+  ctx.fillStyle='#fff';drawCircle(cx-14,cy-38,4,'#fff');drawCircle(cx+32,cy-38,4,'#fff');
+  ctx.fillStyle='#ff8888';
+  ctx.beginPath();ctx.moveTo(cx+3,cy-20);ctx.lineTo(cx-5,cy-14);ctx.lineTo(cx+11,cy-14);ctx.fill();
+  ctx.strokeStyle='#555';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(cx+3,cy-14);ctx.lineTo(cx+3,cy-8);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+3,cy-8);ctx.lineTo(cx-8,cy-2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+3,cy-8);ctx.lineTo(cx+14,cy-2);ctx.stroke();
+  ctx.strokeStyle='#888';ctx.lineWidth=1;
+  for(let i=-1;i<=1;i+=2){for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(cx+i*15,cy-12+j*6);ctx.lineTo(cx+i*55,cy-18+j*10);ctx.stroke();}}
+  gradEllipse(cx-40,cy+65,20,12,colors[0]||'#333','#444');
+  gradEllipse(cx+60,cy+65,20,12,colors[0]||'#333','#444');
+  ctx.strokeStyle=colors[0]||'#333';ctx.lineWidth=15;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx+75,cy+40);ctx.quadraticCurveTo(cx+110,cy+10,cx+90,cy-20);ctx.stroke();
+  noShadow();
 }
 
 // ENTE (f\u00fcr Donald Duck)
-function drawDuck(p,colors){
-  const cx=W/2,cy=H/2;
-  const weiss='#f0f0f0';
-  // K\u00f6rper
-  ctx.fillStyle=weiss;
-  ctx.beginPath();ctx.ellipse(cx,cy+40,80,65,0,0,Math.PI*2);ctx.fill();
-  // Kopf
-  ctx.beginPath();ctx.ellipse(cx-20,cy-50,45,40,0,0,Math.PI*2);ctx.fill();
-  // Matrosenanzug-Oberteil
-  ctx.fillStyle='#1e3a8a';
-  ctx.beginPath();ctx.ellipse(cx,cy+30,75,50,0,0,Math.PI*2);ctx.fill();
-  // Kragen wei\u00df
-  ctx.fillStyle=weiss;
-  ctx.beginPath();ctx.ellipse(cx,cy+10,55,20,0,0,Math.PI*2);ctx.fill();
-  // Rote Fliege
-  ctx.fillStyle='#dc2626';
-  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx+18,cy-8);ctx.lineTo(cx+18,cy+8);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx-18,cy-8);ctx.lineTo(cx-18,cy+8);ctx.closePath();ctx.fill();
-  drawCircle(cx,cy+5,5,'#dc2626');
-  // Schnabel
-  ctx.fillStyle='#f59e0b';
-  ctx.beginPath();ctx.moveTo(cx-20,cy-50);ctx.lineTo(cx+20,cy-40);ctx.lineTo(cx+15,cy-25);ctx.lineTo(cx-25,cy-35);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#d97706';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(cx-20,cy-50);ctx.lineTo(cx+20,cy-40);ctx.lineTo(cx+15,cy-25);ctx.lineTo(cx-25,cy-35);ctx.closePath();ctx.stroke();
-  // Schnabel-Detail
-  ctx.strokeStyle='#d97706';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(cx-15,cy-48);ctx.lineTo(cx+5,cy-42);ctx.stroke();
-  // Augen
-  ctx.fillStyle='#fff';drawCircle(cx-30,cy-60,12,'#fff');drawCircle(cx-5,cy-58,12,'#fff');
-  ctx.fillStyle='#000';drawCircle(cx-28,cy-58,6,'#000');drawCircle(cx-3,cy-56,6,'#000');
-  ctx.fillStyle='#fff';drawCircle(cx-26,cy-62,2,'#fff');drawCircle(cx-1,cy-60,2,'#fff');
-  // Augenbrauen (w\u00fctend)
-  ctx.strokeStyle='#000';ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(cx-42,cy-75);ctx.lineTo(cx-18,cy-68);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cx-8,cy-68);ctx.lineTo(cx+15,cy-75);ctx.stroke();
-  // Matrosenm\u00fctze
-  ctx.fillStyle='#1e3a8a';
-  ctx.beginPath();ctx.ellipse(cx-20,cy-85,40,10,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=weiss;
-  ctx.beginPath();ctx.ellipse(cx-20,cy-86,35,5,0,0,Math.PI*2);ctx.fill();
-  // F\u00fc\u00dfe
-  ctx.fillStyle='#f59e0b';
-  ctx.beginPath();ctx.moveTo(cx-30,cy+100);ctx.lineTo(cx-15,cy+105);ctx.lineTo(cx-50,cy+110);ctx.lineTo(cx-30,cy+100);ctx.fill();
-  ctx.beginPath();ctx.moveTo(cx+30,cy+100);ctx.lineTo(cx+15,cy+105);ctx.lineTo(cx+50,cy+110);ctx.lineTo(cx+30,cy+100);ctx.fill();
-  // Fl\u00fcgel
-  ctx.fillStyle=weiss;
-  ctx.beginPath();ctx.ellipse(cx-60,cy+20,20,35,-0.3,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#ccc';ctx.lineWidth=1;
-  ctx.beginPath();ctx.ellipse(cx-60,cy+20,20,35,-0.3,0,Math.PI*2);ctx.stroke();
+function drawDuck(p,colors) {
+  const cx=W/2,cy=H/2-10,bg=getBgColor(p);ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  gradEllipse(cx,cy+140,W*0.6,80,'#4a7a3a','#2a4a2a');
+  ctx.fillStyle='#3a6a2a';ctx.fillRect(0,cy+130,W,H-cy-130);
+  gradEllipse(cx-80,cy+130,140,30,'#1a5a8a','#0a3a6a');
+  gradEllipse(cx+100,cy+135,120,25,'#1a6a9a','#0a4a7a');
+  gradEllipse(cx,cy+110,70,15,'rgba(0,0,0,0.3)','rgba(0,0,0,0)');
+  gradEllipse(cx-5,cy+50,55,45,'#3a8aef','#1a5aba');
+  gradEllipse(cx-5,cy+55,35,30,'#7abaff','#4a9aef');
+  gradEllipse(cx,cy-25,50,45,'#f5f5dc','#ddd4b0');
+  gradCircle(cx-30,cy-10,10,'rgba(255,150,150,0.4)','rgba(255,150,150,0)');
+  gradCircle(cx+30,cy-10,10,'rgba(255,150,150,0.4)','rgba(255,150,150,0)');
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(cx-20,cy-35,14,16,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+20,cy-35,14,16,0,0,Math.PI*2);ctx.fill();
+  gradCircle(cx-18,cy-33,8,'#1a1a2a','#000');gradCircle(cx+22,cy-33,8,'#1a1a2a','#000');
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(cx-15,cy-37,3,4,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+25,cy-37,3,4,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#1a1a2a';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-30,cy-50);ctx.lineTo(cx-8,cy-48);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+30,cy-50);ctx.lineTo(cx+8,cy-48);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-20,cy-18);ctx.quadraticCurveTo(cx-30,cy-5,cx-15,cy+5);
+  ctx.lineTo(cx+15,cy+5);ctx.quadraticCurveTo(cx+30,cy-5,cx+20,cy-18);
+  ctx.fillStyle='#f5a623';ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-18,cy+2);ctx.quadraticCurveTo(cx,cy+12,cx+18,cy+2);
+  ctx.fillStyle='#e8a020';ctx.fill();
+  ctx.strokeStyle='#8a6010';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx-20,cy-2);ctx.lineTo(cx+20,cy-2);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(cx,cy-65,38,14,0,Math.PI,0);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx,cy-60,40,10,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#e03030';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(cx-38,cy-60);ctx.lineTo(cx+38,cy-60);ctx.stroke();
+  drawCircle(cx,cy-58,5,'#e03030');ctx.fillRect(cx-2,cy-58,4,8);
+  gradEllipse(cx-65,cy+50,15,30,'#f0e8c8','#d8d0b0');
+  gradEllipse(cx+65,cy+50,15,30,'#f0e8c8','#d8d0b0');
+  ctx.fillStyle='#f0e8c8';
+  ctx.beginPath();ctx.ellipse(cx-70,cy+75,12,8,-0.3,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+70,cy+75,12,8,0.3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#f5a623';
+  ctx.beginPath();ctx.ellipse(cx-20,cy+100,18,8,-0.2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+20,cy+100,18,8,0.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.beginPath();ctx.ellipse(cx+90,cy-90,70,35,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#ccc';ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(cx+90,cy-90,70,35,0,0,Math.PI*2);ctx.stroke();
+  drawCircle(cx+50,cy-40,8,'rgba(255,255,255,0.7)');
+  drawCircle(cx+65,cy-30,5,'rgba(255,255,255,0.5)');
+  ctx.fillStyle='#333';ctx.font='bold 18px sans-serif';ctx.textAlign='center';
+  ctx.fillText('\uD83C\uDF40 Gl\u00fcck',cx+90,cy-85);
+  ctx.fillText('Tr\u00e4ume',cx+90,cy-65);
+  ctx.fillStyle='rgba(255,255,255,0.15)';
+  ctx.beginPath();ctx.ellipse(120,70,100,30,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(650,90,80,25,0,0,Math.PI*2);ctx.fill();
+  noShadow();
 }
 
 // HUND
-function drawDog(p,colors){
-  const cx=W/2,cy=H/2-20;
-  const col=/\b(braun|brown)\b/.test(p)?'#8B6914':/\b(schwarz|black)\b/.test(p)?'#2a2a2a':/\b(wei\u00df|white)\b/.test(p)?'#e0e0e0':/\b(golden)\b/.test(p)?'#C8A84E':colors[0];
-  // K\u00f6rper
-  ctx.fillStyle=col;
-  ctx.beginPath();ctx.ellipse(cx,cy+70,100,70,0,0,Math.PI*2);ctx.fill();
-  // Kopf
-  ctx.beginPath();ctx.ellipse(cx,cy-10,55,50,0,0,Math.PI*2);ctx.fill();
-  // Ohren
-  ctx.beginPath();ctx.ellipse(cx-50,cy-20,15,40,-0.3,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.ellipse(cx+50,cy-20,15,40,0.3,0,Math.PI*2);ctx.fill();
-  // Augen
-  ctx.fillStyle='#fff';drawEllipse(cx-20,cy-20,14,16,'#fff');drawEllipse(cx+20,cy-20,14,16,'#fff');
-  ctx.fillStyle='#3a2010';drawCircle(cx-20,cy-18,8,'#3a2010');drawCircle(cx+20,cy-18,8,'#3a2010');
-  ctx.fillStyle='#fff';drawCircle(cx-17,cy-23,3,'#fff');drawCircle(cx+23,cy-23,3,'#fff');
-  // Nase
-  ctx.fillStyle='#2a1a0a';drawEllipse(cx,cy,20,12,'#2a1a0a');
-  // Maul
-  ctx.strokeStyle='#4a3a2a';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx-15,cy+20);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx+15,cy+20);ctx.stroke();
-  // Zunge
-  ctx.fillStyle='#ef4444';ctx.beginPath();ctx.ellipse(cx,cy+25,10,15,0,0,Math.PI*2);ctx.fill();
-  // Halsband
-  ctx.strokeStyle='#dc2626';ctx.lineWidth=8;
-  ctx.beginPath();ctx.ellipse(cx,cy+35,56,20,0,0,Math.PI*2);ctx.stroke();
-  drawCircle(cx,cy+45,6,'#f59e0b');
-  // Schwanz
-  ctx.strokeStyle=col;ctx.lineWidth=12;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(cx+95,cy+20);ctx.quadraticCurveTo(cx+130,cy-40,cx+100,cy-60);ctx.stroke();
+function drawDog(p,colors) {
+  const cx=W/2,cy=H/2+10,bg=getBgColor(p);
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  gradRect(0,cy+80,W,H-cy-80,'#3a6a3a','#1a3a1a','v');
+  gradEllipse(cx,cy+80,80,18,'rgba(0,0,0,0.3)','rgba(0,0,0,0)');
+  gradEllipse(cx-5,cy+20,70,50,colors[0]||'#c8a060',colors[1]||'#a08040');
+  gradEllipse(cx-5,cy+35,35,25,'#e0c090','#c8a060');
+  gradEllipse(cx-5,cy-40,50,45,colors[0]||'#c8a060',colors[2]||'#b89050');
+  gradEllipse(cx+20,cy-25,30,20,'#e0c090','#c8a060');
+  ctx.fillStyle='#2a2a2a';ctx.beginPath();ctx.ellipse(cx+40,cy-28,10,8,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(cx-22,cy-50,16,18,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+12,cy-50,16,18,0,0,Math.PI*2);ctx.fill();
+  gradCircle(cx-20,cy-48,10,'#6a3a1a','#3a1a0a');gradCircle(cx+14,cy-48,10,'#6a3a1a','#3a1a0a');
+  ctx.fillStyle='#fff';drawCircle(cx-17,cy-53,4,'#fff');drawCircle(cx+17,cy-53,4,'#fff');
+  ctx.strokeStyle='#6a5a3a';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-35,cy-62);ctx.lineTo(cx-10,cy-60);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-5,cy-60);ctx.lineTo(cx+25,cy-62);ctx.stroke();
+  gradEllipse(cx-50,cy-20,22,35,colors[2]||'#b89050','#8a6030');
+  gradEllipse(cx+40,cy-20,22,35,colors[2]||'#b89050','#8a6030');
+  ctx.strokeStyle='#ff8888';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx+20,cy-15);ctx.lineTo(cx+35,cy-10);ctx.lineTo(cx+20,cy-5);ctx.stroke();
+  ctx.fillStyle='#ff8888';ctx.beginPath();ctx.ellipse(cx+25,cy-5,8,12,0,0,Math.PI);ctx.fill();
+  gradEllipse(cx-45,cy+70,18,12,colors[0]||'#d4b080','#c09860');
+  gradEllipse(cx+35,cy+70,18,12,colors[0]||'#d4b080','#c09860');
+  ctx.strokeStyle=colors[0]||'#c8a060';ctx.lineWidth=12;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx+70,cy+20);ctx.quadraticCurveTo(cx+100,cy-20,cx+90,cy-40);ctx.stroke();
+  ctx.strokeStyle='#e03030';ctx.lineWidth=5;
+  ctx.beginPath();ctx.lineTo(cx+30,cy-10);ctx.lineTo(cx-20,cy-10);ctx.stroke();
+  drawCircle(cx-5,cy-8,4,'#ffd700');
+  noShadow();
 }
 
 // VOGEL
@@ -1232,32 +904,41 @@ function drawTree(p,colors){
 }
 
 // BERG
-function drawMountain(p,colors){
-  const c1=colors[0]||'#4a5568',c2=colors[1]||'#2d3748',c3=colors[2]||'#718096';
-  // Himmel
-  const grad=ctx.createLinearGradient(0,0,0,H*0.6);
-  grad.addColorStop(0,'#1a365d');grad.addColorStop(1,'#90cdf4');
-  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H*0.6);
-  // Hintere Berge
-  ctx.fillStyle=c3;
-  ctx.beginPath();ctx.moveTo(0,H*0.5);
-  for(let x=0;x<=W;x+=5){const y=H*0.35+Math.sin(x*0.01)*80+Math.sin(x*0.03)*30;ctx.lineTo(x,y);}
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
-  // Mittlere Berge
-  ctx.fillStyle=c2;
-  ctx.beginPath();ctx.moveTo(0,H*0.55);
-  for(let x=0;x<=W;x+=5){const y=H*0.4+Math.sin(x*0.008+1)*100+Math.sin(x*0.025+2)*40;ctx.lineTo(x,y);}
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
-  // Vordere Berge
-  ctx.fillStyle=c1;
-  ctx.beginPath();ctx.moveTo(0,H*0.6);
-  for(let x=0;x<=W;x+=5){const y=H*0.45+Math.sin(x*0.006+3)*120+Math.sin(x*0.02+5)*50;ctx.lineTo(x,y);}
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
-  // Schnee
-  ctx.fillStyle='rgba(255,255,255,0.7)';
-  ctx.beginPath();ctx.moveTo(0,H*0.4);
-  for(let x=0;x<=W;x+=5){const y=H*0.35+Math.sin(x*0.008+1)*100+Math.sin(x*0.025+2)*40;if(y<H*0.42)ctx.lineTo(x,y);else ctx.lineTo(x,H*0.42);}
-  ctx.lineTo(W,H*0.42);ctx.closePath();ctx.fill();
+function drawMountain(p,colors) {
+  const W2=W,H2=H;
+  const g=ctx.createLinearGradient(0,0,0,H2*0.6);
+  g.addColorStop(0,'#0a0a2a');g.addColorStop(0.3,'#1a1a4a');
+  g.addColorStop(0.6,'#3a3a6a');g.addColorStop(1,'#8a8aba');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W2,H2*0.7);
+  ctx.fillStyle='#fff';
+  for(let i=0;i<80;i++){const x=Math.random()*W2,y=Math.random()*H2*0.5,s=0.5+Math.random()*2;
+    ctx.globalAlpha=0.3+Math.random()*0.7;drawCircle(x,y,s,'#fff');}
+  ctx.globalAlpha=1;
+  ctx.fillStyle='#fffff0';ctx.beginPath();ctx.arc(W2*0.8,H2*0.15,40,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#0a0a2a';ctx.beginPath();ctx.arc(W2*0.78,H2*0.13,35,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#1a1a3a';ctx.beginPath();
+  ctx.moveTo(0,H2*0.65);ctx.lineTo(80,H2*0.35);ctx.lineTo(160,H2*0.50);
+  ctx.lineTo(240,H2*0.30);ctx.lineTo(320,H2*0.48);ctx.lineTo(400,H2*0.25);
+  ctx.lineTo(480,H2*0.40);ctx.lineTo(560,H2*0.28);ctx.lineTo(640,H2*0.45);
+  ctx.lineTo(720,H2*0.32);ctx.lineTo(W2,H2*0.38);ctx.lineTo(W2,H2*0.7);ctx.fill();
+  ctx.fillStyle='#2a2a4a';ctx.beginPath();
+  ctx.moveTo(0,H2*0.7);ctx.lineTo(60,H2*0.50);ctx.lineTo(140,H2*0.60);
+  ctx.lineTo(220,H2*0.42);ctx.lineTo(300,H2*0.55);ctx.lineTo(380,H2*0.38);
+  ctx.lineTo(460,H2*0.52);ctx.lineTo(540,H2*0.40);ctx.lineTo(620,H2*0.55);
+  ctx.lineTo(700,H2*0.45);ctx.lineTo(W2,H2*0.50);ctx.lineTo(W2,H2*0.7);ctx.fill();
+  ctx.fillStyle='#1a1a2a';ctx.beginPath();
+  ctx.moveTo(0,H2*0.7);ctx.lineTo(100,H2*0.58);ctx.lineTo(200,H2*0.65);
+  ctx.lineTo(300,H2*0.55);ctx.lineTo(400,H2*0.62);ctx.lineTo(500,H2*0.50);
+  ctx.lineTo(600,H2*0.60);ctx.lineTo(700,H2*0.52);ctx.lineTo(W2,H2*0.55);
+  ctx.lineTo(W2,H2*0.7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.beginPath();
+  ctx.moveTo(240,H2*0.30);ctx.lineTo(210,H2*0.36);ctx.lineTo(270,H2*0.36);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.beginPath();
+  ctx.moveTo(400,H2*0.25);ctx.lineTo(370,H2*0.31);ctx.lineTo(430,H2*0.31);ctx.fill();
+  const w=ctx.createLinearGradient(0,H2*0.65,0,H2);
+  w.addColorStop(0,'#1a3050');w.addColorStop(0.5,'#0a2040');w.addColorStop(1,'#0a0a1a');
+  ctx.fillStyle=w;ctx.fillRect(0,H2*0.65,W2,H2*0.35);
+  noShadow();
 }
 
 // AUTO
@@ -1368,28 +1049,38 @@ function drawBoat(p,colors){
 }
 
 // SONNENUNTERGANG
-function drawSunset(p,colors){
-  const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'#1e1b4b');grad.addColorStop(0.2,'#7c3aed');grad.addColorStop(0.4,'#f59e0b');grad.addColorStop(0.5,'#f97316');grad.addColorStop(0.55,'#dc2626');grad.addColorStop(0.7,'#1e293b');grad.addColorStop(1,'#0f172a');
-  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
-  // Sonne
-  ctx.fillStyle='#fef08a';drawCircle(W*0.5,H*0.5,50,'#fef08a');
-  ctx.globalAlpha=0.15;drawCircle(W*0.5,H*0.5,100,'#fde047');ctx.globalAlpha=1;
-  // Sonnenstrahlen
-  ctx.globalAlpha=0.08;
-  for(let i=0;i<24;i++){const a=i/24*Math.PI*2;ctx.beginPath();ctx.moveTo(W*0.5,H*0.5);ctx.lineTo(W*0.5+Math.cos(a)*300,H*0.5+Math.sin(a)*300);ctx.strokeStyle='#fde047';ctx.lineWidth=3;ctx.stroke();}
-  ctx.globalAlpha=1;
-  // Silhouetten (B\u00e4ume)
-  ctx.fillStyle='#0a0a0a';
-  for(let i=0;i<12;i++){const tx=i*70+20;const th=30+Math.sin(i*2)*25;
-    ctx.beginPath();ctx.moveTo(tx,0.55*H);
-    for(let x=tx-15;x<=tx+15;x+=2){const y=0.55*H-(th-Math.abs(x-tx)*2);ctx.lineTo(x,y);}
-    ctx.closePath();ctx.fill();}
-  // V\u00f6gel
+function drawSunset(p,colors) {
+  const W2=W,H2=H;
+  const g=ctx.createLinearGradient(0,0,0,H2*0.7);
+  g.addColorStop(0,'#1a0533');g.addColorStop(0.2,'#4a1555');g.addColorStop(0.4,'#8a3070');
+  g.addColorStop(0.6,'#d46a40');g.addColorStop(0.8,'#f0a030');g.addColorStop(1,'#f0c040');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W2,H2*0.75);
+  const s=ctx.createRadialGradient(W2*0.5,H2*0.55,0,W2*0.5,H2*0.55,80);
+  s.addColorStop(0,'#fff8e0');s.addColorStop(0.3,'#ffd050');s.addColorStop(0.6,'#ff8020');
+  s.addColorStop(1,'rgba(255,100,0,0)');
+  ctx.fillStyle=s;ctx.beginPath();ctx.arc(W2*0.5,H2*0.55,80,0,Math.PI*2);ctx.fill();
+  const w=ctx.createLinearGradient(0,H2*0.7,0,H2);
+  w.addColorStop(0,'#e08030');w.addColorStop(0.3,'#c06040');
+  w.addColorStop(0.6,'#2a3060');w.addColorStop(1,'#0a1525');
+  ctx.fillStyle=w;ctx.fillRect(0,H2*0.7,W2,H2*0.3);
+  for(let i=0;i<10;i++){ctx.fillStyle='rgba(255,200,100,'+(0.4-i*0.04)+')';ctx.fillRect(W2*0.45,H2*0.72+i*12,W2*0.1-i*3,4);}
+  ctx.fillStyle='#1a0a1a';ctx.beginPath();
+  ctx.moveTo(0,H2*0.72);ctx.lineTo(100,H2*0.55);ctx.lineTo(200,H2*0.65);
+  ctx.lineTo(280,H2*0.48);ctx.lineTo(350,H2*0.60);ctx.lineTo(420,H2*0.42);
+  ctx.lineTo(500,H2*0.55);ctx.lineTo(560,H2*0.38);ctx.lineTo(620,H2*0.50);
+  ctx.lineTo(700,H2*0.35);ctx.lineTo(W2,H2*0.45);ctx.lineTo(W2,H2*0.72);ctx.fill();
+  ctx.fillStyle='#2a1a2a';ctx.beginPath();
+  ctx.moveTo(0,H2*0.68);ctx.lineTo(80,H2*0.52);ctx.lineTo(180,H2*0.60);
+  ctx.lineTo(260,H2*0.45);ctx.lineTo(380,H2*0.55);ctx.lineTo(480,H2*0.40);
+  ctx.lineTo(600,H2*0.50);ctx.lineTo(W2,H2*0.38);ctx.lineTo(W2,H2*0.70);ctx.fill();
+  for(let i=0;i<8;i++){const x=60+i*100,y=50+Math.sin(i)*30;
+    ctx.fillStyle='rgba(200,150,200,0.3)';
+    ctx.beginPath();ctx.ellipse(x,y,60+Math.sin(i*2)*20,20,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(x-30,y-10,40,18,0,0,Math.PI*2);ctx.fill();}
   ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2;
-  for(let i=0;i<5;i++){const bx=100+i*120,by=80+Math.sin(i)*30;
-    ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx+8,by-10,bx+16,by);
-    ctx.quadraticCurveTo(bx+24,by-10,bx+32,by);ctx.stroke();}
+  for(let i=0;i<5;i++){const x=100+i*130,y=30+i*25;
+    ctx.beginPath();ctx.moveTo(x-10,y+5);ctx.lineTo(x,y-5);ctx.lineTo(x+10,y+5);ctx.stroke();}
+  noShadow();
 }
 
 // BOOT (wird bereits behandelt)
@@ -1611,300 +1302,6 @@ canvas.onclick = e => { if(tool!=='shapes') return; const r=canvas.getBoundingCl
 saveState();
 selectTool('tti');
 msg('Bereit');
-</script>
-<script>
-if("serviceWorker" in navigator) {
-  window.addEventListener("load", function() {
-    navigator.serviceWorker.register("sw.js");
-  });
-}
-
-
-// URL-Parameter auslesen
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  const prompt = params.get('prompt');
-  if (prompt) {
-    const ta = document.getElementById('ttiPrompt');
-    if (ta) {
-      ta.value = prompt;
-      setTimeout(() => generateTTI(), 500);
-    }
-  }
-})();
-
-
-
-// ===== API-KEY VERWALTUNG =====
-function toggleApiKeys() {
-  const p = document.getElementById('apiKeysPanel');
-  if (!p) return;
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-  // Geladene Keys anzeigen
-  try {
-    document.getElementById('githubToken').value = localStorage.getItem('malstudio_github_token') || '';
-    document.getElementById('deepaiKey').value = localStorage.getItem('malstudio_deepai_key') || '';
-    document.getElementById('hfToken').value = localStorage.getItem('malstudio_hf_token') || '';
-  } catch(e) {}
-}
-
-function saveApiKeys() {
-  try {
-    localStorage.setItem('malstudio_github_token', document.getElementById('githubToken').value || '');
-    localStorage.setItem('malstudio_deepai_key', document.getElementById('deepaiKey').value || '');
-    localStorage.setItem('malstudio_hf_token', document.getElementById('hfToken').value || '');
-    msg('\u2705 API-Keys gespeichert!');
-  } catch(e) { msg('\u26a0\ufe0f Fehler beim Speichern'); }
-}
-
-function onProviderChange() {
-  const prov = document.getElementById('ttiProvider').value;
-  const hfPanel = document.getElementById('hfModelPanel');
-  const keysPanel = document.getElementById('apiKeysPanel');
-  if (hfPanel) hfPanel.style.display = 'none';
-  if (keysPanel) keysPanel.style.display = 'none';
-  if (prov === 'huggingface' && hfPanel) hfPanel.style.display = 'block';
-}
-
-function toggleHFModels() {
-  const p = document.getElementById('hfModelPanel');
-  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
-}
-
-// ===== GITHUB MODELS (FLUX.1 / SDXL via GitHub Token) =====
-function generateWithGitHubModels(prompt, p, style, palette, progress) {
-  const token = localStorage.getItem('malstudio_github_token');
-  if (!token) {
-    progressMsg(progress, '\u26a0\ufe0f Kein GitHub Token! \u2192 Fallback');
-    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-    return;
-  }
-  
-  msg('\U0001f419 GitHub Models generiert...');
-  progressMsg(progress, '\U0001f419 GitHub Models (FLUX.1)...');
-  
-  // Versuche FLUX.1-dev via GitHub Models
-  fetch('https://models.inference.ai.azure.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + token
-    },
-    body: JSON.stringify({
-      model: 'FLUX.1-dev',
-      messages: [{ role: 'user', content: 'Generate an image: ' + prompt }],
-      n: 1
-    })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) throw new Error(data.error.message || 'API Error');
-    msg('\u2705 GitHub Models Bild!');
-    progressMsg(progress, '\u2705 Fertig!');
-    // GitHub Models gibt meist einen URL oder Base64 zurück
-    if (data.choices && data.choices[0]) {
-      const content = data.choices[0].message.content;
-      // Versuche Base64-Bild zu finden
-      const b64match = content.match(/data:image\/(png|jpeg|webp);base64,([^"]+)/);
-      if (b64match) {
-        const img = new Image();
-        img.onload = function() {
-          ctx.clearRect(0,0,W,H);
-          ctx.drawImage(img, 0, 0, W, H);
-          saveState();
-          saveToGallery(prompt);
-        };
-        img.src = 'data:image/' + b64match[1] + ';base64,' + b64match[2];
-        return;
-      }
-      // Oder URL
-      const urlMatch = content.match(/https?:\\/\\/[^"\s]+/);
-      if (urlMatch) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = function() {
-          ctx.clearRect(0,0,W,H);
-          ctx.drawImage(img, 0, 0, W, H);
-          saveState();
-          saveToGallery(prompt);
-        };
-        img.onerror = function() {
-          progressMsg(progress, '\u26a0\ufe0f GitHub Models Formatfehler \u2192 Algorithmus');
-          generateWithAlgorithm(prompt, p, style, palette);
-        };
-        img.src = urlMatch[1];
-        return;
-      }
-    }
-    throw new Error('Kein Bild in Antwort');
-  })
-  .catch(err => {
-    progressMsg(progress, '\u26a0\ufe0f GitHub Models: ' + err.message.substring(0, 30));
-    if (document.getElementById('ttiProvider').value === 'auto') {
-      generateWithHuggingFace(prompt, p, style, palette, progress);
-    } else {
-      generateWithAlgorithm(prompt, p, style, palette);
-    }
-  });
-}
-
-// ===== ERWEITERTE HUGGING FACE MIT MODELLAUSWAHL =====
-generateWithHuggingFace = function(prompt, p, style, palette, progress) {
-  const modelSelect = document.getElementById('hfModelSelect');
-  const model = modelSelect ? modelSelect.value : 'stabilityai/stable-diffusion-xl-base-1.0';
-  const hfToken = localStorage.getItem('malstudio_hf_token') || '';
-  
-  msg('\U0001f9e0 ' + model.split('/').pop() + '...');
-  progressMsg(progress, '\U0001f9e0 ' + model.split('/').pop().substring(0, 20) + '...');
-  
-  const res = document.getElementById('ttiRes')?.value || 1024;
-  const neg = document.getElementById('ttiNegPrompt')?.value || '';
-  
-  const body = { inputs: prompt, parameters: { width: parseInt(res), height: parseInt(res) } };
-  if (neg) body.parameters.negative_prompt = neg;
-  
-  const headers = { 'Content-Type': 'application/json' };
-  if (hfToken) headers['Authorization'] = 'Bearer ' + hfToken;
-  
-  fetch('https://api-inference.huggingface.co/models/' + model, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(body)
-  })
-  .then(res => {
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) throw new Error('Token n\u00f6tig f\u00fcr ' + model.split('/').pop());
-      throw new Error('HTTP ' + res.status);
-    }
-    return res.blob();
-  })
-  .then(blob => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = function() {
-      msg('\u2705 ' + model.split('/').pop() + ' Bild!');
-      progressMsg(progress, '\u2705 Fertig!');
-      ctx.clearRect(0,0,W,H);
-      ctx.drawImage(img, 0, 0, W, H);
-      saveState();
-      saveToGallery(prompt);
-      URL.revokeObjectURL(url);
-    };
-    img.onerror = function() {
-      URL.revokeObjectURL(url);
-      handleHuggingFaceFallback(prompt, p, style, palette, progress, model);
-    };
-    img.src = url;
-  })
-  .catch(err => {
-    progressMsg(progress, '\u26a0\ufe0f ' + err.message.substring(0, 30));
-    handleHuggingFaceFallback(prompt, p, style, palette, progress, model);
-  });
-};
-
-function handleHuggingFaceFallback(prompt, p, style, palette, progress, model) {
-  const provider = document.getElementById('ttiProvider').value;
-  if (provider === 'auto') {
-    progressMsg(progress, '\U0001f504 HF nicht verf\u00fcgbar \u2192 Pollinations');
-    generateWithPollinations(prompt, p, style, palette, progress);
-  } else {
-    progressMsg(progress, '\u26a0\ufe0f HF nicht verf\u00fcgbar');
-    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-  }
-}
-
-// ===== ERWEITERTE DEEPAI MIT API-KEY =====
-generateWithDeepAI = function(prompt, p, style, palette, progress) {
-  const key = localStorage.getItem('malstudio_deepai_key');
-  if (!key) {
-    progressMsg(progress, '\u26a0\ufe0f Kein DeepAI Key! \u2192 Fallback');
-    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-    return;
-  }
-  
-  msg('\U0001f535 DeepAI generiert...');
-  progressMsg(progress, '\U0001f535 DeepAI SDXL...');
-  
-  fetch('https://api.deepai.org/api/text2img', {
-    method: 'POST',
-    headers: { 'Api-Key': key },
-    body: new URLSearchParams({ text: prompt + ', high quality, detailed' })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.err) throw new Error(data.err);
-    if (data.output_url) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = function() {
-        msg('\u2705 DeepAI Bild!');
-        progressMsg(progress, '\u2705 Fertig!');
-        ctx.clearRect(0,0,W,H);
-        ctx.drawImage(img, 0, 0, W, H);
-        saveState();
-        saveToGallery(prompt);
-      };
-      img.onerror = function() {
-        progressMsg(progress, '\u26a0\ufe0f DeepAI Fehler \u2192 Fallback');
-        handleDeepAIFallback(prompt, p, style, palette, progress);
-      };
-      img.src = data.output_url;
-    } else {
-      throw new Error('Keine URL');
-    }
-  })
-  .catch(err => {
-    progressMsg(progress, '\u26a0\ufe0f DeepAI: ' + err.message.substring(0, 25));
-    handleDeepAIFallback(prompt, p, style, palette, progress);
-  });
-};
-
-function handleDeepAIFallback(prompt, p, style, palette, progress) {
-  const provider = document.getElementById('ttiProvider').value;
-  if (provider === 'auto') {
-    generateWithStability(prompt, p, style, palette, progress);
-  } else {
-    generateWithAlgorithm(prompt, p, style, palette);
-  }
-}
-
-// ===== GENERATE TTI UPDATED =====
-generateTTI = function() {
-  const prompt = document.getElementById('ttiPrompt').value.trim();
-  const style = document.getElementById('ttiStyle').value;
-  const palette = document.getElementById('ttiPalette').value;
-  const provider = document.getElementById('ttiProvider').value;
-  if (!prompt) { msg('Bitte etwas eingeben!'); return; }
-  
-  const p = prompt.toLowerCase();
-  const progress = document.getElementById('ttiProgress');
-  if (progress) progress.textContent = '';
-  
-  ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
-  
-  switch(provider) {
-    case 'githubmodels': generateWithGitHubModels(prompt, p, style, palette, progress); break;
-    case 'deepai':        generateWithDeepAI(prompt, p, style, palette, progress); break;
-    case 'huggingface':   generateWithHuggingFace(prompt, p, style, palette, progress); break;
-    case 'pollinations':  generateWithPollinations(prompt, p, style, palette, progress); break;
-    case 'stability':     generateWithStability(prompt, p, style, palette, progress); break;
-    case 'algorithmic':   generateWithAlgorithm(prompt, p, style, palette); break;
-    default: /* auto */
-      if (progress) progress.textContent = '\U0001f504 Versuche Pollinations...';
-      generateWithPollinations(prompt, p, style, palette, progress);
-  }
-};
-
-// Initialisierung
-setTimeout(() => {
-  renderPromptSuggestions();
-  // API-Keys aus localStorage laden
-  try {
-    const gt = localStorage.getItem('malstudio_github_token');
-    if (gt) document.getElementById('githubToken').value = gt;
-  } catch(e) {}
-}, 200);
-
 </script>
 </body>
 </html>
