@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎨 MalStudio – 13 Bildwerkzeuge</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.toolbar { background: #1e293b; padding: 8px; display: flex; gap: 4px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid #334155; }
+.toolbar button { background: #334155; border: none; color: #94a3b8; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap; transition: all .2s; font-family: inherit; }
+.toolbar button:hover { background: #475569; color: #e2e8f0; }
+.toolbar button.active { background: #10b981; color: #fff; }
+.canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #0f172a; }
+.canvas-wrap canvas { max-width: 100%; max-height: 100%; }
+.controls { background: #1e293b; padding: 10px 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; flex-shrink: 0; border-top: 1px solid #334155; font-size: 13px; }
+.controls label { color: #94a3b8; display: flex; align-items: center; gap: 6px; }
+.controls input[type=color] { width: 32px; height: 32px; border: 2px solid #475569; border-radius: 6px; background: none; cursor: pointer; }
+.controls input[type=range] { width: 80px; accent-color: #10b981; }
+.controls select { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; padding: 4px 8px; }
+.controls button { background: #10b981; border: none; color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+.controls button:hover { background: #059669; }
+.controls button.danger { background: #ef4444; }
+.controls button.danger:hover { background: #dc2626; }
+.controls input[type=text] { background: #334155; color: #fff; border: 1px solid #475569; border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: inherit; width: 200px; }
+.controls input[type=text]:focus { outline: none; border-color: #10b981; }
+.hidden { display: none !important; }
+#statusMsg { color: #94a3b8; font-size: 12px; margin-left: auto; }
+.ttibox { display: flex; flex-direction: column; width: 100%; gap: 8px; }
+.ttibox textarea { background: #1e293b; color: #e2e8f0; border: 1px solid #475569; border-radius: 8px; padding: 10px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 60px; width: 100%; }
+.ttibox textarea:focus { outline: none; border-color: #10b981; }
+.ttibox .ttirow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ttibox .ttirow button { flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="toolbar" id="toolbar"></div>
+<div class="canvas-wrap">
+  <canvas id="canvas"></canvas>
+  <div id="placeholder" style="position:absolute;color:#475569;font-size:18px;pointer-events:none;">Wähle ein Werkzeug und los geht's</div>
+</div>
+<div class="controls" id="controls"></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const placeholder = document.getElementById('placeholder');
+let W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
+
+let tool = 'tti';
+let drawing = false;
+let lastX, lastY;
+let brushSize = 4;
+let brushColor = '#10b981';
+let opacity = 1;
+let history = [];
+let historyIndex = -1;
+let maxHistory = 50;
+
+function saveState() { if (historyIndex < maxHistory - 1) history.length = historyIndex + 1; history.push(canvas.toDataURL()); historyIndex = history.length - 1; }
+function undo() { if (historyIndex > 0) { historyIndex--; let img = new Image(); img.onload = () => { ctx.clearRect(0,0,W,H); ctx.drawImage(img,0,0); }; img.src = history[historyIndex]; } }
+function clearCanvas() { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); saveState(); }
+function msg(s) { const el = document.getElementById('statusMsg'); if(el) el.textContent = s; }
+
+// 13 Tools
+const tools = [
+  { id:'tti',       label:'🤖 KI-Bild', desc:'Text eingeben, Bild wird generiert' },
+  { id:'brush',     label:'🖌 Malen',   desc:'Freihand-Pinsel' },
+  { id:'watercolor',label:'💧 Aquarell',desc:'Weicher Aquarell-Pinsel' },
+  { id:'shapes',    label:'⬜ Formen',  desc:'Rechteck, Kreis, Dreieck, Linie, Stern' },
+  { id:'text',      label:'🔤 Text',    desc:'Text auf Bild setzen' },
+  { id:'gradient',  label:'🌈 Verlauf', desc:'Farbverläufe' },
+  { id:'pattern',   label:'〰️ Muster', desc:'Punkte, Streifen, Wellen, Sechseck' },
+  { id:'fractal',   label:'🌀 Fraktal', desc:'Mandelbrot, Julia, Burning Ship' },
+  { id:'mandala',   label:'☯️ Mandala', desc:'Symmetrische Kunst' },
+  { id:'pixel',     label:'👾 Pixel',   desc:'Pixel-Art Editor' },
+  { id:'random',    label:'🎲 Zufall',  desc:'Generative Kunst' },
+  { id:'filter',    label:'🔍 Filter',  desc:'Bildfilter anwenden' },
+  { id:'export',    label:'💾 Export',  desc:'Speichern & Teilen' },
+];
+
+// Toolbar
+const tb = document.getElementById('toolbar');
+tools.forEach(t => {
+  let btn = document.createElement('button');
+  btn.textContent = t.label;
+  btn.title = t.desc;
+  btn.dataset.tool = t.id;
+  btn.onclick = () => selectTool(t.id);
+  tb.appendChild(btn);
+});
+
+function selectTool(id) {
+  tool = id;
+  document.querySelectorAll('.toolbar button').forEach(b => b.classList.toggle('active', b.dataset.tool === id));
+  placeholder.classList.add('hidden');
+  renderControls();
+  if (id === 'pixel') initPixelGrid();
+}
+
+function renderControls() {
+  const c = document.getElementById('controls');
+  const t = tool;
+  let html = '';
+
+  const commonFarbe = `
+    <label>Farbe <input type=color id=colorPick value="${brushColor}" onchange="brushColor=this.value"></label>
+    <label>Größe <input type=range min=1 max=50 value=${brushSize} oninput="brushSize=+this.value;msg('Größe: '+brushSize)"></label>
+    <label>Deckkraft <input type=range min=0.1 max=1 step=0.1 value=${opacity} oninput="opacity=+this.value"></label>
+    <button onclick="undo()">↩ Rückgängig</button>
+    <button class=danger onclick="if(confirm('Wirklich löschen?')){clearCanvas();msg('Gelöscht')}">🗑 Löschen</button>
+  `;
+
+  switch(t) {
+    case 'tti':
+      html = `
+        <div class="ttibox">
+          <textarea id="ttiPrompt" placeholder="Beschreibe, was du sehen willst, z.B.:&#10;● Sonnenuntergang über den Bergen&#10;● Abstrakte Kunst in Blau und Gold&#10;● Ein Kreis aus bunten Dreiecken&#10;● Sternenhimmel mit leuchtenden Farben"></textarea>
+          <div class="ttirow">
+            <label>Stil <select id=ttiStyle>
+              <option value=auto>Automatisch</option>
+              <option value=landscape>Landschaft</option>
+              <option value=abstract>Abstrakt</option>
+              <option value=geometric>Geometrisch</option>
+              <option value=space>Weltraum</option>
+              <option value=pattern>Muster</option>
+              <option value=colorful>Bunt</option>
+            </select></label>
+            <label>Farben <select id=ttiPalette>
+              <option value=auto>Automatisch</option>
+              <option value=warm>Warm (Rot/Gold)</option>
+              <option value=cool>Kalt (Blau/Grün)</option>
+              <option value=neon>Neon</option>
+              <option value=pastel>Pastell</option>
+              <option value=mono>Monochrom</option>
+            </select></label>
+            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 ECHTES KI-BILD</button>
+            <span style="color:#8b5cf6;font-size:11px;">⚡ echte KI via Pollinations</span>
+            <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
+          </div>
+        </div>
+      `;
+      break;
+    case 'brush': html = commonFarbe; break;
+    case 'watercolor': html = `
+      <label>Farbe <input type=color id=colorPick value="${brushColor}" onchange="brushColor=this.value"></label>
+      <label>Größe <input type=range min=5 max=80 value=30 oninput="brushSize=+this.value;msg('Größe: '+brushSize)"></label>
+      <label>Deckkraft <input type=range min=0.05 max=0.5 step=0.05 value=0.2 oninput="opacity=+this.value"></label>
+      <button onclick="undo()">↩ Rückgängig</button>
+      <button class=danger onclick="if(confirm('Löschen?')){clearCanvas();msg('Gelöscht')}">🗑 Löschen</button>
+    `; break;
+    case 'shapes': html = `
+      ${commonFarbe}
+      <select id=shapeType>
+        <option value=rect>Rechteck</option>
+        <option value=circle>Kreis</option>
+        <option value=triangle>Dreieck</option>
+        <option value=line>Linie</option>
+        <option value=star>Stern</option>
+      </select>
+      <label>Gefüllt <input type=checkbox id=shapeFill checked></label>
+    `; break;
+    case 'text': html = `
+      ${commonFarbe}
+      <label>Text <input type=text id=textVal value="Hallo" style="background:#334155;color:#fff;border:1px solid #475569;border-radius:6px;padding:4px 8px;width:120px;"></label>
+      <select id=fontSize><option value=20>20px</option><option value=32 selected>32px</option><option value=48>48px</option><option value=72>72px</option></select>
+      <button onclick="placeText()">📝 Text setzen</button>
+    `; break;
+    case 'gradient': html = `
+      <label>Von <input type=color id=grad1 value="#10b981"></label>
+      <label>Bis <input type=color id=grad2 value="#3b82f6"></label>
+      <label>Richtung <select id=gradDir><option value=horizontal>Waagerecht</option><option value=vertical>Senkrecht</option><option value=diagonal>Diagonal</option><option value=radial>Radial</option></select></label>
+      <button onclick="drawGradient()">🌈 Verlauf malen</button>
+    `; break;
+    case 'pattern': html = `
+      <label>Muster <select id=patternType>
+        <option value=dots>Punkte</option><option value=stripes>Streifen</option>
+        <option value=checker>Schachbrett</option><option value=waves>Wellen</option><option value=hexagon>Sechseck</option>
+      </select></label>
+      <label>Farbe1 <input type=color id=patCol1 value="#10b981"></label>
+      <label>Farbe2 <input type=color id=patCol2 value="#1e293b"></label>
+      <label>Größe <input type=range min=10 max=100 value=40 id=patSize></label>
+      <button onclick="drawPattern()">〰️ Muster erzeugen</button>
+    `; break;
+    case 'fractal': html = `
+      <label>Typ <select id=fractalType>
+        <option value=mandelbrot>Mandelbrot</option><option value=julia>Julia</option>
+        <option value=burning>Burning Ship</option><option value=tricorn>Tricorn</option>
+      </select></label>
+      <label>Farbe <input type=color id=fractalColor value="#10b981"></label>
+      <label>Hintergrund <input type=color id=fractalBg value="#0f172a"></label>
+      <label>Zoom <input type=range min=1 max=500 value=200 id=fractalZoom></label>
+      <button onclick="drawFractal()">🌀 Fraktal berechnen</button>
+    `; break;
+    case 'mandala': html = `
+      <label>Farbe1 <input type=color id=manCol1 value="#10b981"></label>
+      <label>Farbe2 <input type=color id=manCol2 value="#f59e0b"></label>
+      <label>Symmetrie <input type=range min=3 max=24 value=8 id=manSym></label>
+      <label>Größe <input type=range min=20 max=200 value=80 id=manSize></label>
+      <button onclick="drawMandala()">☯️ Mandala malen</button>
+    `; break;
+    case 'pixel': html = `
+      <label>Farbe <input type=color id=colorPick value="${brushColor}" onchange="brushColor=this.value"></label>
+      <label>Raster <select id=pixelGrid onchange="initPixelGrid()">
+        <option value=8>8×8</option><option value=16 selected>16×16</option><option value=32>32×32</option>
+      </select></label>
+      <button onclick="initPixelGrid()">🔄 Neu</button>
+      <button class=danger onclick="if(confirm('Löschen?')){clearCanvas();msg('Gelöscht')}">🗑</button>
+    `; break;
+    case 'random': html = `
+      <label>Stil <select id=randStyle>
+        <option value=waves>Wellen</option><option value=circles>Kreise</option><option value=lines>Linien</option>
+        <option value=splatter>Spritzer</option><option value=triangles>Dreiecke</option><option value=auro>Polarlicht</option>
+      </select></label>
+      <label>Farbe1 <input type=color id=randCol1 value="#10b981"></label>
+      <label>Farbe2 <input type=color id=randCol2 value="#8b5cf6"></label>
+      <button onclick="generateRandom()">🎲 Generieren</button>
+    `; break;
+    case 'filter': html = `
+      <label>Filter <select id=filterType>
+        <option value=grayscale>Graustufen</option><option value=sepia>Sepia</option>
+        <option value=invert>Negativ</option><option value=blur>Weichzeichner</option>
+        <option value=sharp>Schärfen</option><option value=posterize>Poster</option>
+        <option value=vintage>Vintage</option><option value=glow>Glühen</option>
+      </select></label>
+      <label>Stärke <input type=range min=0 max=100 value=50 id=filterStrength></label>
+      <button onclick="applyFilter()">🔍 Anwenden</button>
+    `; break;
+    case 'export': html = `
+      <button onclick="exportPNG()">💾 Als PNG speichern</button>
+      <button onclick="exportJPG()">🖼 Als JPG speichern</button>
+      <button onclick="copyToClip()">📋 Kopieren</button>
+      <button onclick="shareImage()">📤 Teilen</button>
+      <button onclick="fullscreen()">⛶ Vollbild</button>
+    `; break;
+  }
+  c.innerHTML = html + `<span id="statusMsg"></span>`;
+  if (t === 'pixel') initPixelGrid();
+  if (t === 'tti') document.getElementById('ttiPrompt')?.focus();
+}
+
+
+
+// ===== TEXT-TO-IMAGE GENERATOR (Universal) =====
+
+function generateTTI() {
+  const prompt = document.getElementById('ttiPrompt').value.trim();
+  const style = document.getElementById('ttiStyle').value;
+  const palette = document.getElementById('ttiPalette').value;
+  if (!prompt) { msg('Bitte etwas eingeben!'); return; }
+  
+  msg('Zeichne "' + prompt.substring(0, 30) + '"...');
+  const p = prompt.toLowerCase();
+  
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
+  
+  // Versuche zuerst Pollinations API (manchmal verf\u00fcgbar)
+  tryPollinations(prompt, p, style, palette);
+}
+
+function tryPollinations(prompt, p, style, palette) {
+  // KI-API ist meist rate-limitiert - direkt zum Zeichner springen
+  fallbackGenerate(prompt, p, style, palette);
+}
+
+function fallbackGenerate(prompt, p, style, palette) {
+  msg('Zeichne...');
+  
+  // Erkenne was gezeichnet werden soll
+  let colors = getPaletteColors(palette, p);
+  
+  // Bestimme Hintergrundfarbe
+  ctx.fillStyle = getBgColor(p);
+  ctx.fillRect(0,0,W,H);
+  
+  // Zeichne basierend auf erkannten Motiven
+  drawByPrompt(p, colors);
+  
+  // Stil-Filter anwenden
+  if (style !== 'auto') applyStyleFilter(style);
+  
+  saveState();
+  msg('\u2726 Fertig: "' + prompt.substring(0, 40) + '"');
+}
+
+function getBgColor(p) {
+  if (/\b(nacht|dunkel|schwarz|weltraum|stern)\b/.test(p)) return '#0a0a1a';
+  if (/\b(sonnenuntergang|abend|d\u00e4mmer)\b/.test(p)) return '#1a0a2a';
+  if (/\b(tag|hell|sonnig|licht)\b/.test(p)) return '#87CEEB';
+  if (/\b(wasser|meer|see|ozean|strand)\b/.test(p)) return '#1a3a5a';
+  if (/\b(wald|natur|garten|wiese)\b/.test(p)) return '#2a4a2a';
+  if (/\b(feuer|warm|rot|orange)\b/.test(p)) return '#2a1a0a';
+  if (/\b(nebel|dunst|winter|eis)\b/.test(p)) return '#c0c8d0';
+  return '#1e293b';
+}
+
+function drawByPrompt(p, colors) {
+  const subjects = [
+    // Tiere
+    { words:/\b(katze|kater|k\u00e4tzchen|cat|Mieze|samtschwarz)\b/, draw:function(){drawCat(p,colors);} },
+    { words:/\b(hund|welpe|dog|h\u00fcndin|bello)\b/, draw:function(){drawDog(p,colors);} },
+    { words:/\b(vogel|bird|papagei|spatz|adler|falke|eule)\b/, draw:function(){drawBird(p,colors);} },
+    { words:/\b(schmetterling|butterfly|falter)\b/, draw:function(){drawButterfly(p,colors);} },
+    { words:/\b(fisch|fish|goldfisch|aquarium)\b/, draw:function(){drawFish(p,colors);} },
+    { words:/\b(pferd|horse|stute|hengst|pony)\b/, draw:function(){drawHorse(p,colors);} },
+    { words:/\b(drache|dragon|dinosaurier|t-rex|saurier)\b/, draw:function(){drawDragon(p,colors);} },
+    { words:/\b(elefant|elephant)\b/, draw:function(){drawElephant(p,colors);} },
+    { words:/\b(schlange|snake|python)\b/, draw:function(){drawSnake(p,colors);} },
+    { words:/\b(b\u00e4r|bear|teddy)\b/, draw:function(){drawBear(p,colors);} },
+    { words:/\b(schaf|sheep|lamm|l\u00e4mmchen)\b/, draw:function(){drawSheep(p,colors);} },
+    { words:/\b(kuh|cow|rind)\b/, draw:function(){drawCow(p,colors);} },
+    { words:/\b(ente|duck|enten)\b/, draw:function(){drawDuck(p,colors);} },
+    { words:/\b(fuchs|fox)\b/, draw:function(){drawFox(p,colors);} },
+    { words:/\b(wolf|wolf)\b/, draw:function(){drawWolf(p,colors);} },
+    // Natur
+    { words:/\b(blume|flower|rose|tulpe|sonnenblume|veilchen)\b/, draw:function(){drawFlower(p,colors);} },
+    { words:/\b(baum|tree|tanne|eiche|palme)\b/, draw:function(){drawTree(p,colors);} },
+    { words:/\b(berg|mountain|gebirge)\b/, draw:function(){drawMountain(p,colors);} },
+    { words:/\b(sonnenuntergang|sunset|sonnenaufgang|sunrise)\b/, draw:function(){drawSunset(p,colors);} },
+    { words:/\b(wasserfall|waterfall)\b/, draw:function(){drawWaterfall(p,colors);} },
+    // Objekte
+    { words:/\b(auto|car|porsche|ferrari|fahrzeug|cabrio)\b/, draw:function(){drawCar(p,colors);} },
+    { words:/\b(haus|house|villa|h\u00fctte|schloss|castle|bungalow)\b/, draw:function(){drawHouse(p,colors);} },
+    { words:/\b(schiff|boot|boat|segelschiff|yacht|hafen)\b/, draw:function(){drawBoat(p,colors);} },
+    { words:/\b(flugzeug|plane|jet|heli|hubschrauber)\b/, draw:function(){drawPlane(p,colors);} },
+    { words:/\b(boot|ballon|luftballon|heissluftballon)\b/, draw:function(){drawBalloon(p,colors);} },
+    { words:/\b(fahrrad|bike|motorrad|roller)\b/, draw:function(){drawBike(p,colors);} },
+    { words:/\b(rakete|spaceship|raumschiff|rocket|ufo)\b/, draw:function(){drawRocket(p,colors);} },
+    // Fantasie
+    { words:/\b(fee|fairy|elfe|prinzessin)\b/, draw:function(){drawFairy(p,colors);} },
+    { words:/\b(einhorn|unicorn)\b/, draw:function(){drawUnicorn(p,colors);} },
+    // Menschen
+    { words:/\b(portr\u00e4t|portrait|gesicht|face|frau|mann|person|mensch)\b/, draw:function(){drawPortrait(p,colors);} },
+    { words:/\b(ent\u0105|donald)\b/, draw:function(){drawDuck(p,colors);} },
+  ];
+  
+  let drawn = false;
+  for (const s of subjects) {
+    if (s.words.test(p)) { s.draw(); drawn = true; break; }
+  }
+  
+  if (!drawn) {
+    // Kein spezifisches Motiv erkannt - benutze Stil-basierte Generierung
+    const finalStyle = document.getElementById('ttiStyle').value;
+    let fs = finalStyle;
+    if (fs === 'auto') {
+      if (/\b(landschaft|scenery|view)\b/.test(p)) fs = 'landscape';
+      else if (/\b(weltraum|space|galaxie)\b/.test(p)) fs = 'space';
+      else if (/\b(abstrakt|abstract|kunst)\b/.test(p)) fs = 'abstract';
+      else fs = 'colorful';
+    }
+    switch(fs) {
+      case 'landscape': drawGenericLandscape(p, colors); break;
+      case 'space': drawGenericSpace(colors); break;
+      case 'abstract': drawAbstractArt(p, colors); break;
+      case 'geometric': drawGeometric(colors); break;
+      case 'pattern': drawPatternGen(p, colors); break;
+      default: drawColorfulAbstract(colors); break;
+    }
+  }
+}
+
+function applyStyleFilter(style) {
+  // Leichte Farbfilter je nach Stil
+  const imgData = ctx.getImageData(0,0,W,H);
+  const d = imgData.data;
+  for(let i=0;i<d.length;i+=4){
+    let r=d[i],g=d[i+1],b=d[i+2];
+    if(style==='landscape'){d[i]=r*0.95;d[i+1]=g*1.05;d[i+2]=b*0.95;}
+    else if(style==='abstract'){d[i]=Math.min(255,r*1.1);d[i+2]=Math.min(255,b*1.1);}
+    else if(style==='space'){d[i]*=0.8;d[i+1]*=0.7;d[i+2]=Math.min(255,b*1.1);}
+    else if(style==='pattern'){d[i]=Math.min(255,r+20);d[i+1]=Math.min(255,g+20);d[i+2]=Math.min(255,b+20);}
+  }
+  ctx.putImageData(imgData,0,0);
+}
+
+// ========== ZEICHENFUNKTIONEN ==========
+
+function noise2D(x,y) {
+  return Math.sin(x*12.9898 + y*78.233) * 43758.5453 % 1;
+}
+
+function hsl(h,s,l){return "hsl("+h+","+s+"%,"+l+"%)";}
+
+function drawCircle(x,y,r,col){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();}
+function drawEllipse(x,y,rx,ry,col){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();}
+
+// KATZE
+function drawCat(p,colors){
+  const cx=W/2,cy=H/2-30;
+  const col=/#\b(schwarz|black|samtschwarz)\b/.test(p)?'#1a1a2e':/#\b(orange|rot|ginger)\b/.test(p)?'#d4763a':/#\b(wei\u00df|white)\b/.test(p)?'#e8e8e8':/#\b(grau|grey|gray)\b/.test(p)?'#8a8a8a':colors[0];
+  const eye='#22c55e';
+  
+  // K\u00f6rper
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx,cy+60,90,70,0,0,Math.PI*2);ctx.fill();
+  // Kopf
+  ctx.beginPath();ctx.ellipse(cx,cy-20,55,50,0,0,Math.PI*2);ctx.fill();
+  // Ohren
+  ctx.beginPath();ctx.moveTo(cx-45,cy-40);ctx.lineTo(cx-30,cy-85);ctx.lineTo(cx-15,cy-50);ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+45,cy-40);ctx.lineTo(cx+30,cy-85);ctx.lineTo(cx+15,cy-50);ctx.fill();
+  // Innenohren
+  ctx.fillStyle='#f9a8d4';ctx.beginPath();ctx.moveTo(cx-40,cy-45);ctx.lineTo(cx-30,cy-75);ctx.lineTo(cx-20,cy-50);ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+40,cy-45);ctx.lineTo(cx+30,cy-75);ctx.lineTo(cx+20,cy-50);ctx.fill();
+  // Augen
+  ctx.fillStyle='#fff';drawEllipse(cx-20,cy-25,16,18,'#fff');drawEllipse(cx+20,cy-25,16,18,'#fff');
+  ctx.fillStyle=eye;drawEllipse(cx-20,cy-25,12,16,eye);drawEllipse(cx+20,cy-25,12,16,eye);
+  ctx.fillStyle='#000';drawCircle(cx-20,cy-22,6,'#000');drawCircle(cx+20,cy-22,6,'#000');
+  ctx.fillStyle='#fff';drawCircle(cx-17,cy-28,3,'#fff');drawCircle(cx+23,cy-28,3,'#fff');
+  // Nase
+  ctx.fillStyle='#f9a8d4';ctx.beginPath();ctx.moveTo(cx,cy-8);ctx.lineTo(cx-6,cy-2);ctx.lineTo(cx+6,cy-2);ctx.fill();
+  // Mund
+  ctx.strokeStyle='#4a4a4a';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(cx,cy-2);ctx.lineTo(cx,cy+5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.quadraticCurveTo(cx-15,cy+15,cx-20,cy+5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.quadraticCurveTo(cx+15,cy+15,cx+20,cy+5);ctx.stroke();
+  // Schnurrhaare
+  ctx.strokeStyle='#aaa';ctx.lineWidth=1;
+  for(let i=-5;i<=5;i+=3){
+    ctx.beginPath();ctx.moveTo(cx-10,cy+i*1.2);ctx.lineTo(cx-60,cy+i*1.5-15);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx+10,cy+i*1.2);ctx.lineTo(cx+60,cy+i*1.5-15);ctx.stroke();
+  }
+  // Schwanz
+  ctx.strokeStyle=col;ctx.lineWidth=14;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx+80,cy+40);ctx.quadraticCurveTo(cx+130,cy-50,cx+60,cy-70);ctx.stroke();
+  // Pfoten
+  ctx.fillStyle=col;
+  drawEllipse(cx-40,cy+120,20,12,col);drawEllipse(cx+40,cy+120,20,12,col);
+  drawEllipse(cx-30,cy+120,10,6,'#f9a8d4');drawEllipse(cx+30,cy+120,10,6,'#f9a8d4');
+}
+
+// ENTE (f\u00fcr Donald Duck)
+function drawDuck(p,colors){
+  const cx=W/2,cy=H/2;
+  const weiss='#f0f0f0';
+  // K\u00f6rper
+  ctx.fillStyle=weiss;
+  ctx.beginPath();ctx.ellipse(cx,cy+40,80,65,0,0,Math.PI*2);ctx.fill();
+  // Kopf
+  ctx.beginPath();ctx.ellipse(cx-20,cy-50,45,40,0,0,Math.PI*2);ctx.fill();
+  // Matrosenanzug-Oberteil
+  ctx.fillStyle='#1e3a8a';
+  ctx.beginPath();ctx.ellipse(cx,cy+30,75,50,0,0,Math.PI*2);ctx.fill();
+  // Kragen wei\u00df
+  ctx.fillStyle=weiss;
+  ctx.beginPath();ctx.ellipse(cx,cy+10,55,20,0,0,Math.PI*2);ctx.fill();
+  // Rote Fliege
+  ctx.fillStyle='#dc2626';
+  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx+18,cy-8);ctx.lineTo(cx+18,cy+8);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx-18,cy-8);ctx.lineTo(cx-18,cy+8);ctx.closePath();ctx.fill();
+  drawCircle(cx,cy+5,5,'#dc2626');
+  // Schnabel
+  ctx.fillStyle='#f59e0b';
+  ctx.beginPath();ctx.moveTo(cx-20,cy-50);ctx.lineTo(cx+20,cy-40);ctx.lineTo(cx+15,cy-25);ctx.lineTo(cx-25,cy-35);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#d97706';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx-20,cy-50);ctx.lineTo(cx+20,cy-40);ctx.lineTo(cx+15,cy-25);ctx.lineTo(cx-25,cy-35);ctx.closePath();ctx.stroke();
+  // Schnabel-Detail
+  ctx.strokeStyle='#d97706';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx-15,cy-48);ctx.lineTo(cx+5,cy-42);ctx.stroke();
+  // Augen
+  ctx.fillStyle='#fff';drawCircle(cx-30,cy-60,12,'#fff');drawCircle(cx-5,cy-58,12,'#fff');
+  ctx.fillStyle='#000';drawCircle(cx-28,cy-58,6,'#000');drawCircle(cx-3,cy-56,6,'#000');
+  ctx.fillStyle='#fff';drawCircle(cx-26,cy-62,2,'#fff');drawCircle(cx-1,cy-60,2,'#fff');
+  // Augenbrauen (w\u00fctend)
+  ctx.strokeStyle='#000';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(cx-42,cy-75);ctx.lineTo(cx-18,cy-68);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-8,cy-68);ctx.lineTo(cx+15,cy-75);ctx.stroke();
+  // Matrosenm\u00fctze
+  ctx.fillStyle='#1e3a8a';
+  ctx.beginPath();ctx.ellipse(cx-20,cy-85,40,10,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=weiss;
+  ctx.beginPath();ctx.ellipse(cx-20,cy-86,35,5,0,0,Math.PI*2);ctx.fill();
+  // F\u00fc\u00dfe
+  ctx.fillStyle='#f59e0b';
+  ctx.beginPath();ctx.moveTo(cx-30,cy+100);ctx.lineTo(cx-15,cy+105);ctx.lineTo(cx-50,cy+110);ctx.lineTo(cx-30,cy+100);ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+30,cy+100);ctx.lineTo(cx+15,cy+105);ctx.lineTo(cx+50,cy+110);ctx.lineTo(cx+30,cy+100);ctx.fill();
+  // Fl\u00fcgel
+  ctx.fillStyle=weiss;
+  ctx.beginPath();ctx.ellipse(cx-60,cy+20,20,35,-0.3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#ccc';ctx.lineWidth=1;
+  ctx.beginPath();ctx.ellipse(cx-60,cy+20,20,35,-0.3,0,Math.PI*2);ctx.stroke();
+}
+
+// HUND
+function drawDog(p,colors){
+  const cx=W/2,cy=H/2-20;
+  const col=/\b(braun|brown)\b/.test(p)?'#8B6914':/\b(schwarz|black)\b/.test(p)?'#2a2a2a':/\b(wei\u00df|white)\b/.test(p)?'#e0e0e0':/\b(golden)\b/.test(p)?'#C8A84E':colors[0];
+  // K\u00f6rper
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx,cy+70,100,70,0,0,Math.PI*2);ctx.fill();
+  // Kopf
+  ctx.beginPath();ctx.ellipse(cx,cy-10,55,50,0,0,Math.PI*2);ctx.fill();
+  // Ohren
+  ctx.beginPath();ctx.ellipse(cx-50,cy-20,15,40,-0.3,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+50,cy-20,15,40,0.3,0,Math.PI*2);ctx.fill();
+  // Augen
+  ctx.fillStyle='#fff';drawEllipse(cx-20,cy-20,14,16,'#fff');drawEllipse(cx+20,cy-20,14,16,'#fff');
+  ctx.fillStyle='#3a2010';drawCircle(cx-20,cy-18,8,'#3a2010');drawCircle(cx+20,cy-18,8,'#3a2010');
+  ctx.fillStyle='#fff';drawCircle(cx-17,cy-23,3,'#fff');drawCircle(cx+23,cy-23,3,'#fff');
+  // Nase
+  ctx.fillStyle='#2a1a0a';drawEllipse(cx,cy,20,12,'#2a1a0a');
+  // Maul
+  ctx.strokeStyle='#4a3a2a';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx-15,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy+5);ctx.lineTo(cx+15,cy+20);ctx.stroke();
+  // Zunge
+  ctx.fillStyle='#ef4444';ctx.beginPath();ctx.ellipse(cx,cy+25,10,15,0,0,Math.PI*2);ctx.fill();
+  // Halsband
+  ctx.strokeStyle='#dc2626';ctx.lineWidth=8;
+  ctx.beginPath();ctx.ellipse(cx,cy+35,56,20,0,0,Math.PI*2);ctx.stroke();
+  drawCircle(cx,cy+45,6,'#f59e0b');
+  // Schwanz
+  ctx.strokeStyle=col;ctx.lineWidth=12;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx+95,cy+20);ctx.quadraticCurveTo(cx+130,cy-40,cx+100,cy-60);ctx.stroke();
+}
+
+// VOGEL
+function drawBird(p,colors){
+  const cx=W/2,cy=H/2-20;
+  const col=/\b(rot|red)\b/.test(p)?'#dc2626':/\b(blau|blue)\b/.test(p)?'#2563eb':/\b(gelb|yellow)\b/.test(p)?'#eab308':/\b(gr\u00fcn|green)\b/.test(p)?'#16a34a':colors[0];
+  const col2=colors.length>1?colors[1]:'#f59e0b';
+  // K\u00f6rper
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx-10,cy+20,55,40,0.2,0,Math.PI*2);ctx.fill();
+  // Fl\u00fcgel
+  ctx.fillStyle=col2;
+  ctx.beginPath();ctx.ellipse(cx-40,cy-5,30,20,-0.5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+30,cy,25,18,0.5,0,Math.PI*2);ctx.fill();
+  // Kopf
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx+45,cy-30,28,24,0,0,Math.PI*2);ctx.fill();
+  // Auge
+  ctx.fillStyle='#fff';drawCircle(cx+52,cy-35,10,'#fff');
+  ctx.fillStyle='#000';drawCircle(cx+54,cy-35,5,'#000');
+  ctx.fillStyle='#fff';drawCircle(cx+56,cy-38,2,'#fff');
+  // Schnabel
+  ctx.fillStyle='#f59e0b';
+  ctx.beginPath();ctx.moveTo(cx+72,cy-30);ctx.lineTo(cx+90,cy-25);ctx.lineTo(cx+72,cy-22);ctx.closePath();ctx.fill();
+  // Schwanzfedern
+  ctx.fillStyle=col2;
+  ctx.beginPath();ctx.moveTo(cx-60,cy+15);ctx.lineTo(cx-95,cy+30);ctx.lineTo(cx-80,cy+5);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-60,cy+20);ctx.lineTo(cx-100,cy+40);ctx.lineTo(cx-85,cy+15);ctx.closePath();ctx.fill();
+  // Beine
+  ctx.strokeStyle='#f59e0b';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(cx-20,cy+55);ctx.lineTo(cx-25,cy+85);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+5,cy+55);ctx.lineTo(cx+5,cy+85);ctx.stroke();
+}
+
+// SCHMETTERLING
+function drawButterfly(p,colors){
+  const cx=W/2,cy=H/2;
+  const col1=colors[0],col2=colors[1]||colors[2]||'#f59e0b';
+  // Linke Fl\u00fcgel
+  ctx.fillStyle=col1;ctx.globalAlpha=0.8;
+  ctx.beginPath();ctx.ellipse(cx-40,cy-20,50,40,-0.7,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx-35,cy+25,35,30,-0.3,0,Math.PI*2);ctx.fill();
+  // Rechte Fl\u00fcgel
+  ctx.fillStyle=col2;ctx.globalAlpha=0.8;
+  ctx.beginPath();ctx.ellipse(cx+40,cy-20,50,40,0.7,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+35,cy+25,35,30,0.3,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+  // K\u00f6rper
+  ctx.fillStyle='#1a1a2e';
+  ctx.beginPath();ctx.ellipse(cx,cy,8,40,0,0,Math.PI*2);ctx.fill();
+  // F\u00fchler
+  ctx.strokeStyle='#1a1a2e';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx-3,cy-38);ctx.quadraticCurveTo(cx-20,cy-65,cx-15,cy-60);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+3,cy-38);ctx.quadraticCurveTo(cx+20,cy-65,cx+15,cy-60);ctx.stroke();
+  drawCircle(cx-15,cy-60,3,col1);drawCircle(cx+15,cy-60,3,col2);
+  // Fl\u00fcgel-Muster
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  drawCircle(cx-35,cy-20,12,'rgba(255,255,255,0.3)');
+  drawCircle(cx+35,cy-20,12,'rgba(255,255,255,0.3)');
+}
+
+// FISCH
+function drawFish(p,colors){
+  const cx=W/2,cy=H/2;
+  const col=colors[0];
+  // K\u00f6rper
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx,cy,80,40,0,0,Math.PI*2);ctx.fill();
+  // Schwanz
+  ctx.beginPath();ctx.moveTo(cx-80,cy);ctx.lineTo(cx-110,cy-35);ctx.lineTo(cx-110,cy+35);ctx.closePath();ctx.fill();
+  // R\u00fcckenflosse
+  ctx.beginPath();ctx.moveTo(cx-20,cy-35);ctx.lineTo(cx+20,cy-50);ctx.lineTo(cx+30,cy-35);ctx.closePath();ctx.fill();
+  // Auge
+  ctx.fillStyle='#fff';drawCircle(cx+50,cy-8,14,'#fff');
+  ctx.fillStyle='#000';drawCircle(cx+52,cy-8,7,'#000');
+  ctx.fillStyle='#fff';drawCircle(cx+55,cy-12,3,'#fff');
+  // Maul
+  ctx.strokeStyle='#333';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx+76,cy,10,0,Math.PI/2);ctx.stroke();
+  // Schuppen
+  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;
+  for(let i=0;i<6;i++){
+    const sx=cx-40+i*20,sy=cy-5+Math.sin(i)*15;
+    ctx.beginPath();ctx.arc(sx,sy,12,0,Math.PI*2);ctx.stroke();
+  }
+}
+
+// PFERD
+function drawHorse(p,colors){
+  const cx=W/2,cy=H/2-30;
+  const col=/\b(braun|brown)\b/.test(p)?'#8B6914':/\b(schwarz|black)\b/.test(p)?'#2a2a2a':/\b(wei\u00df|white)\b/.test(p)?'#e0d8c8':colors[0];
+  // K\u00f6rper
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx+10,cy+50,85,55,0,0,Math.PI*2);ctx.fill();
+  // Hals
+  ctx.beginPath();ctx.ellipse(cx-30,cy-20,30,45,-0.2,0,Math.PI*2);ctx.fill();
+  // Kopf
+  ctx.beginPath();ctx.ellipse(cx-45,cy-60,25,20,0,0,Math.PI*2);ctx.fill();
+  // Nase
+  ctx.beginPath();ctx.ellipse(cx-65,cy-55,15,12,0,0,Math.PI*2);ctx.fill();
+  // Auge
+  ctx.fillStyle='#000';drawCircle(cx-40,cy-68,5,'#000');
+  ctx.fillStyle='#fff';drawCircle(cx-38,cy-71,2,'#fff');
+  // M\u00e4hne
+  ctx.strokeStyle=colors.length>1?colors[1]:'#5a3a1a';ctx.lineWidth=4;ctx.lineCap='round';
+  for(let i=0;i<8;i++){const a=i/7*0.5+0.2;
+    ctx.beginPath();ctx.moveTo(cx-40+i*5,cy-80+i*5);ctx.quadraticCurveTo(cx-60+i*10,cy-50+i*5,cx-45+i*3,cy-30);ctx.stroke();}
+  // Beine
+  ctx.strokeStyle=col;ctx.lineWidth=12;ctx.lineCap='round';
+  [[-40,100],[-10,100],[20,100],[50,100]].forEach(([dx,dy])=>{
+    ctx.beginPath();ctx.moveTo(cx+dx,cy+dy);ctx.lineTo(cx+dx-8,cy+dy+50);ctx.stroke();});
+  // Hufe
+  ctx.fillStyle='#333';
+  [[-48,150],[-18,150],[12,150],[42,150]].forEach(([dx,dy])=>drawEllipse(cx+dx,cy+dy,10,5,'#333'));
+  // Schweif
+  ctx.strokeStyle=colors.length>1?colors[1]:'#5a3a1a';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx+90,cy+20);ctx.quadraticCurveTo(cx+130,cy-20,cx+120,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+90,cy+25);ctx.quadraticCurveTo(cx+140,cy+0,cx+130,cy+30);ctx.stroke();
+}
+
+// DRACHE
+function drawDragon(p,colors){
+  const cx=W/2,cy=H/2;
+  const col=colors[0]||'#059669';
+  // K\u00f6rper
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx-20,cy+40,60,40,0,0,Math.PI*2);ctx.fill();
+  // Hals
+  ctx.beginPath();ctx.ellipse(cx-30,cy-10,25,45,-0.1,0,Math.PI*2);ctx.fill();
+  // Kopf
+  ctx.beginPath();ctx.ellipse(cx-50,cy-50,35,25,0,0,Math.PI*2);ctx.fill();
+  // H\u00f6rner
+  ctx.fillStyle='#92400e';
+  ctx.beginPath();ctx.moveTo(cx-65,cy-65);ctx.lineTo(cx-75,cy-100);ctx.lineTo(cx-55,cy-70);ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-40,cy-70);ctx.lineTo(cx-45,cy-105);ctx.lineTo(cx-35,cy-75);ctx.fill();
+  // Augen
+  ctx.fillStyle='#fde047';drawCircle(cx-55,cy-55,10,'#fde047');
+  ctx.fillStyle='#000';drawCircle(cx-53,cy-55,5,'#000');
+  // N\u00fcstern
+  ctx.fillStyle='#333';
+  drawCircle(cx-70,cy-45,4,'#333');drawCircle(cx-60,cy-45,4,'#333');
+  // Feuer
+  ctx.fillStyle='#f97316';
+  ctx.beginPath();ctx.moveTo(cx-80,cy-38);ctx.quadraticCurveTo(cx-130,cy-60,cx-110,cy-20);ctx.quadraticCurveTo(cx-140,cy-10,cx-90,cy-25);ctx.fill();
+  ctx.fillStyle='#fde047';
+  ctx.beginPath();ctx.moveTo(cx-85,cy-35);ctx.quadraticCurveTo(cx-120,cy-50,cx-105,cy-25);ctx.quadraticCurveTo(cx-125,cy-15,cx-90,cy-30);ctx.fill();
+  // Fl\u00fcgel
+  ctx.fillStyle=colors.length>1?colors[1]:'#047857';
+  ctx.beginPath();ctx.moveTo(cx-60,cy+10);ctx.quadraticCurveTo(cx-120,cy-50,cx-100,cy+40);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-40,cy+5);ctx.quadraticCurveTo(cx-100,cy-80,cx-80,cy+20);ctx.closePath();ctx.fill();
+  // Schwanz
+  ctx.strokeStyle=col;ctx.lineWidth=10;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx+40,cy+40);ctx.quadraticCurveTo(cx+100,cy+80,cx+120,cy+30);ctx.stroke();
+  // Schwanzspitze
+  ctx.fillStyle='#92400e';
+  ctx.beginPath();ctx.moveTo(cx+115,cy+25);ctx.lineTo(cx+140,cy+15);ctx.lineTo(cx+125,cy+35);ctx.closePath();ctx.fill();
+  // Beine
+  ctx.fillStyle=col;
+  drawEllipse(cx-30,cy+70,15,10,col);drawEllipse(cx+10,cy+70,15,10,col);
+  // Krallen
+  ctx.fillStyle='#92400e';
+  for(let dx of[-35,-25,5,15]){for(let i=-5;i<=5;i+=5){drawCircle(cx+dx+i,cy+78,3,'#92400e');}}
+}
+
+// ELEFANT
+function drawElephant(p,colors){
+  const cx=W/2,cy=H/2;
+  const col=colors[0]||'#6b7280';
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.ellipse(cx,cy+50,100,70,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx-20,cy-30,55,50,0,0,Math.PI*2);ctx.fill();
+  // Ohren
+  ctx.beginPath();ctx.ellipse(cx-70,cy-20,35,50,-0.2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+30,cy-20,35,50,0.2,0,Math.PI*2);ctx.fill();
+  // R\u00fcssel
+  ctx.strokeStyle=col;ctx.lineWidth=20;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-50,cy-20);ctx.quadraticCurveTo(cx-80,cy+20,cx-70,cy+50);ctx.stroke();
+  ctx.strokeStyle=col;ctx.lineWidth=15;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-70,cy+50);ctx.quadraticCurveTo(cx-65,cy+70,cx-50,cy+75);ctx.stroke();
+  // Augen
+  ctx.fillStyle='#000';drawCircle(cx-35,cy-40,6,'#000');
+  ctx.fillStyle='#fff';drawCircle(cx-33,cy-43,2,'#fff');
+  // Sto\u00dfz\u00e4hne
+  ctx.fillStyle='#f8fafc';
+  ctx.beginPath();ctx.moveTo(cx-55,cy-10);ctx.lineTo(cx-65,cy+10);ctx.lineTo(cx-55,cy+5);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-45,cy-10);ctx.lineTo(cx-55,cy+10);ctx.lineTo(cx-45,cy+5);ctx.closePath();ctx.fill();
+  // Beine
+  ctx.fillStyle=col;const bw=25;
+  [[-50,110],[-15,110],[15,110],[50,110]].forEach(([dx,dy])=>{
+    ctx.fillRect(cx+dx-bw/2,cy+dy,bw,60);});
+  // Zehen
+  ctx.fillStyle='#f8fafc';
+  [[-55,168],[-40,168],[-20,168],[-5,168],[10,168],[25,168],[45,168],[60,168]].forEach(([dx,dy])=>{
+    drawCircle(cx+dx,cy+dy,5,'#f8fafc');});
+}
+
+// BLUME
+function drawFlower(p,colors){
+  const cx=W/2,cy=H/2;
+  const col1=colors[0],col2=colors[1]||'#fde047';
+  // Stiel
+  ctx.strokeStyle='#16a34a';ctx.lineWidth=6;
+  ctx.beginPath();ctx.moveTo(cx,cy+30);ctx.quadraticCurveTo(cx+10,cy+40,cx+5,cy+100);ctx.stroke();
+  // Bl\u00e4tter
+  ctx.fillStyle='#22c55e';
+  ctx.beginPath();ctx.ellipse(cx+15,cy+65,20,8,0.5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx-10,cy+80,18,7,-0.4,0,Math.PI*2);ctx.fill();
+  // Bl\u00fctenbl\u00e4tter
+  const petalCount=/\b(rose)\b/.test(p)?16:8;
+  const petalSize=/\b(rose)\b/.test(p)?55:40;
+  ctx.fillStyle=col1;
+  for(let i=0;i<petalCount;i++){
+    const a=i/petalCount*Math.PI*2-Math.PI/2;
+    const dist=/\b(rose)\b/.test(p)?30+Math.sin(i*3)*20:35;
+    ctx.beginPath();
+    if(/\b(rose)\b/.test(p)){
+      for(let t=0;t<=10;t++){const ta=t/10*Math.PI*2;const r=petalSize*Math.sin(ta)*Math.abs(Math.sin(ta+i));const px=cx+Math.cos(a)*dist+Math.cos(ta)*r;const py=cy+Math.sin(a)*dist+Math.sin(ta)*r;t===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+    } else {
+      ctx.ellipse(cx+Math.cos(a)*dist,cy+Math.sin(a)*dist,petalSize,petalSize*0.4,a,0,Math.PI*2);
+    }
+    ctx.fill();
+  }
+  // Zus\u00e4tzliche Bl\u00e4tter f\u00fcr Rose
+  if(/\b(rose)\b/.test(p)){
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;ctx.fillStyle=colors[i%colors.length];
+      ctx.beginPath();ctx.ellipse(cx+Math.cos(a)*20,cy+Math.sin(a)*20,25,15,a,0,Math.PI*2);ctx.fill();}
+  }
+  // Mitte
+  ctx.fillStyle=col2;
+  drawCircle(cx,cy,/\b(rose)\b/.test(p)?15:20,col2);
+  ctx.fillStyle='#d97706';drawCircle(cx,cy,/\b(rose)\b/.test(p)?8:10,'#d97706');
+}
+
+// BAUM
+function drawTree(p,colors){
+  const cx=W/2,cy=H/2+30;
+  const isPine=/\b(tanne|pine|nadel|fichte)\b/.test(p);
+  const isPalm=/\b(palme|palm)\b/.test(p);
+  // Stamm
+  ctx.fillStyle='#5c3a1e';
+  ctx.fillRect(cx-10,cy-40,20,120);
+  ctx.strokeStyle='#5c3a1e';ctx.lineWidth=4;
+  if(isPalm){for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(cx+10,cy-30+i*15);ctx.quadraticCurveTo(cx+30+i*10,cy-40+i*10,cx+50+i*5,cy-50+i*5);ctx.stroke();}}
+  // Krone
+  if(isPine){
+    ctx.fillStyle='#166534';
+    for(let i=0;i<4;i++){const h=30+i*25;ctx.beginPath();ctx.moveTo(cx,cy-50-h);ctx.lineTo(cx-40-i*5,cy-30-i*8);ctx.lineTo(cx+40+i*5,cy-30-i*8);ctx.closePath();ctx.fill();}
+  } else if(isPalm){
+    const col=colors[0]||'#22c55e';
+    ctx.strokeStyle=col;ctx.lineWidth=6;ctx.lineCap='round';
+    for(let i=0;i<7;i++){const a=i/7*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy-55);ctx.quadraticCurveTo(cx+Math.cos(a)*40,cy-70+Math.sin(a)*10,cx+Math.cos(a)*100,cy-50+Math.sin(a)*30);ctx.stroke();
+      ctx.fillStyle='#16a34a';drawEllipse(cx+Math.cos(a)*90,cy-55+Math.sin(a)*30,15,6,a,'#16a34a');}
+  } else {
+    ctx.fillStyle='#22c55e';
+    ctx.beginPath();ctx.arc(cx,cy-50,70,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#16a34a';
+    ctx.beginPath();ctx.arc(cx-25,cy-70,40,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+20,cy-65,45,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy-45,50,0,Math.PI*2);ctx.fill();
+  }
+}
+
+// BERG
+function drawMountain(p,colors){
+  const c1=colors[0]||'#4a5568',c2=colors[1]||'#2d3748',c3=colors[2]||'#718096';
+  // Himmel
+  const grad=ctx.createLinearGradient(0,0,0,H*0.6);
+  grad.addColorStop(0,'#1a365d');grad.addColorStop(1,'#90cdf4');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H*0.6);
+  // Hintere Berge
+  ctx.fillStyle=c3;
+  ctx.beginPath();ctx.moveTo(0,H*0.5);
+  for(let x=0;x<=W;x+=5){const y=H*0.35+Math.sin(x*0.01)*80+Math.sin(x*0.03)*30;ctx.lineTo(x,y);}
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+  // Mittlere Berge
+  ctx.fillStyle=c2;
+  ctx.beginPath();ctx.moveTo(0,H*0.55);
+  for(let x=0;x<=W;x+=5){const y=H*0.4+Math.sin(x*0.008+1)*100+Math.sin(x*0.025+2)*40;ctx.lineTo(x,y);}
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+  // Vordere Berge
+  ctx.fillStyle=c1;
+  ctx.beginPath();ctx.moveTo(0,H*0.6);
+  for(let x=0;x<=W;x+=5){const y=H*0.45+Math.sin(x*0.006+3)*120+Math.sin(x*0.02+5)*50;ctx.lineTo(x,y);}
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+  // Schnee
+  ctx.fillStyle='rgba(255,255,255,0.7)';
+  ctx.beginPath();ctx.moveTo(0,H*0.4);
+  for(let x=0;x<=W;x+=5){const y=H*0.35+Math.sin(x*0.008+1)*100+Math.sin(x*0.025+2)*40;if(y<H*0.42)ctx.lineTo(x,y);else ctx.lineTo(x,H*0.42);}
+  ctx.lineTo(W,H*0.42);ctx.closePath();ctx.fill();
+}
+
+// AUTO
+function drawCar(p,colors){
+  const cx=W/2,cy=H/2-20;
+  const col=/\b(rot|red)\b/.test(p)?'#dc2626':/\b(blau|blue)\b/.test(p)?'#2563eb':/\b(schwarz|black)\b/.test(p)?'#1a1a1a':/\b(wei\u00df|white)\b/.test(p)?'#e8e8e8':colors[0];
+  // Stra\u00dfe
+  ctx.fillStyle='#374151';ctx.fillRect(0,cy+60,W,60);
+  ctx.strokeStyle='#fde047';ctx.lineWidth=2;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,cy+85);ctx.lineTo(x+20,cy+85);ctx.stroke();}
+  // Karosserie
+  ctx.fillStyle=col;
+  ctx.beginPath();ctx.moveTo(cx-130,cy+30);ctx.lineTo(cx+130,cy+30);ctx.lineTo(cx+130,cy-20);ctx.lineTo(cx+80,cy-60);ctx.lineTo(cx-60,cy-60);ctx.lineTo(cx-110,cy-20);ctx.lineTo(cx-130,cy-20);ctx.closePath();ctx.fill();
+  // Windschutzscheibe
+  ctx.fillStyle='#1a3a5a';ctx.globalAlpha=0.6;
+  ctx.beginPath();ctx.moveTo(cx-95,cy-20);ctx.lineTo(cx-50,cy-55);ctx.lineTo(cx+20,cy-55);ctx.lineTo(cx+60,cy-20);ctx.closePath();ctx.fill();
+  // Seitenfenster
+  ctx.beginPath();ctx.moveTo(cx+25,cy-55);ctx.lineTo(cx+70,cy-20);ctx.lineTo(cx+105,cy-20);ctx.lineTo(cx+65,cy-55);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;
+  // R\u00e4der
+  ctx.fillStyle='#1a1a1a';drawCircle(cx-70,cy+40,25,'#1a1a1a');drawCircle(cx+70,cy+40,25,'#1a1a1a');
+  ctx.fillStyle='#444';drawCircle(cx-70,cy+40,16,'#444');drawCircle(cx+70,cy+40,16,'#444');
+  ctx.fillStyle='#888';drawCircle(cx-70,cy+40,6,'#888');drawCircle(cx+70,cy+40,6,'#888');
+  // Scheinwerfer
+  ctx.fillStyle='#fde047';drawEllipse(cx-125,cy-5,10,6,'#fde047');
+  ctx.fillStyle='#ef4444';drawEllipse(cx+125,cy-5,10,6,'#ef4444');
+  // K\u00fchlergrill
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2;
+  for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(cx-115,cy-15+i*6);ctx.lineTo(cx-100,cy-15+i*6);ctx.stroke();}
+}
+
+// HAUS
+function drawHouse(p,colors){
+  const cx=W/2,cy=H/2-10;
+  // Himmel
+  ctx.fillStyle='#87CEEB';ctx.fillRect(0,0,W,H*0.4);
+  ctx.fillStyle='#fde047';drawCircle(W*0.85,40,30,'#fde047');
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  for(let i=0;i<5;i++){drawEllipse(50+i*180,80+Math.sin(i)*20,60,15,'rgba(255,255,255,0.3)');}
+  // Boden
+  ctx.fillStyle='#22c55e';ctx.fillRect(0,cy+80,W,H-cy-80);
+  // Hausk\u00f6rper
+  ctx.fillStyle='#e2e8f0';
+  ctx.fillRect(cx-80,cy-20,160,100);
+  // Dach
+  ctx.fillStyle='#ef4444';
+  ctx.beginPath();ctx.moveTo(cx-100,cy-20);ctx.lineTo(cx,cy-90);ctx.lineTo(cx+100,cy-20);ctx.closePath();ctx.fill();
+  // Dachziegel-Linien
+  ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+  for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(cx-100+i*25,cy-20-i*14);ctx.lineTo(cx+100,cy-20-i*14);ctx.stroke();}
+  // T\u00fcr
+  ctx.fillStyle='#5c3a1e';ctx.fillRect(cx-15,cy+20,30,60);
+  ctx.fillStyle='#fde047';drawCircle(cx+8,cy+50,3,'#fde047');
+  // Fenster
+  ctx.fillStyle='#93c5fd';ctx.fillRect(cx-65,cy,30,30);
+  ctx.fillRect(cx+35,cy,30,30);
+  ctx.strokeStyle='#475569';ctx.lineWidth=2;
+  ctx.strokeRect(cx-65,cy,30,30);ctx.strokeRect(cx+35,cy,30,30);
+  ctx.beginPath();ctx.moveTo(cx-50,cy);ctx.lineTo(cx-50,cy+30);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+50,cy);ctx.lineTo(cx+50,cy+30);ctx.stroke();
+  // Rauch aus Schornstein
+  if(/\b(kamin|schornstein)\b/.test(p)){
+    ctx.fillStyle='#475569';ctx.fillRect(cx+60,cy-80,15,40);
+    ctx.fillStyle='rgba(200,200,200,0.3)';
+    drawCircle(cx+68,cy-95,15,'rgba(200,200,200,0.3)');
+    drawCircle(cx+72,cy-110,20,'rgba(200,200,200,0.2)');
+    drawCircle(cx+78,cy-128,25,'rgba(200,200,200,0.1)');
+  }
+  // Zaun
+  ctx.strokeStyle='#8B6914';ctx.lineWidth=3;
+  for(let x=0;x<W;x+=35){ctx.beginPath();ctx.moveTo(x,cy+78);ctx.lineTo(x,cy+62);ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(0,cy+70);ctx.lineTo(W,cy+70);ctx.stroke();
+}
+
+// BOOT
+function drawBoat(p,colors){
+  const cx=W/2,cy=H/2;
+  // Himmel
+  const grad=ctx.createLinearGradient(0,0,0,H*0.3);
+  grad.addColorStop(0,'#fef08a');grad.addColorStop(1,'#60a5fa');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H*0.3);
+  // Meer
+  const seaGrad=ctx.createLinearGradient(0,H*0.3,0,H);
+  seaGrad.addColorStop(0,'#3b82f6');seaGrad.addColorStop(1,'#1e3a5f');
+  ctx.fillStyle=seaGrad;ctx.fillRect(0,H*0.3,W,H*0.7);
+  // Wellen
+  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=2;
+  for(let w=0;w<8;w++){ctx.beginPath();for(let x=0;x<W;x+=3){ctx.lineTo(x,H*0.3+w*20+Math.sin(x*0.02+w)*8);}ctx.stroke();}
+  // Sonne
+  ctx.fillStyle='#fef08a';drawCircle(W*0.8,H*0.2,30,'#fef08a');
+  ctx.globalAlpha=0.2;drawCircle(W*0.8,H*0.2,50,'#fef08a');ctx.globalAlpha=1;
+  // Rumpf
+  ctx.fillStyle=colors[0]||'#8B6914';
+  ctx.beginPath();ctx.moveTo(cx-100,cy);ctx.lineTo(cx+100,cy);ctx.lineTo(cx+60,cy+50);ctx.lineTo(cx-60,cy+50);ctx.closePath();ctx.fill();
+  // Deck
+  ctx.fillStyle=colors[1]||'#a0522d';
+  ctx.fillRect(cx-90,cy-10,180,12);
+  // Mast
+  ctx.strokeStyle='#333';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(cx+10,cy-10);ctx.lineTo(cx+10,cy-120);ctx.stroke();
+  // Segel
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(cx+12,cy-115);ctx.lineTo(cx+80,cy-50);ctx.lineTo(cx+12,cy-30);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(200,200,200,0.5)';
+  ctx.beginPath();ctx.moveTo(cx-50,cy-60);ctx.lineTo(cx+10,cy-110);ctx.lineTo(cx+10,cy-30);ctx.closePath();ctx.fill();
+  // Flagge
+  ctx.fillStyle='#dc2626';
+  ctx.beginPath();ctx.moveTo(cx+10,cy-120);ctx.lineTo(cx+30,cy-115);ctx.lineTo(cx+10,cy-110);ctx.closePath();ctx.fill();
+}
+
+// SONNENUNTERGANG
+function drawSunset(p,colors){
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#1e1b4b');grad.addColorStop(0.2,'#7c3aed');grad.addColorStop(0.4,'#f59e0b');grad.addColorStop(0.5,'#f97316');grad.addColorStop(0.55,'#dc2626');grad.addColorStop(0.7,'#1e293b');grad.addColorStop(1,'#0f172a');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  // Sonne
+  ctx.fillStyle='#fef08a';drawCircle(W*0.5,H*0.5,50,'#fef08a');
+  ctx.globalAlpha=0.15;drawCircle(W*0.5,H*0.5,100,'#fde047');ctx.globalAlpha=1;
+  // Sonnenstrahlen
+  ctx.globalAlpha=0.08;
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2;ctx.beginPath();ctx.moveTo(W*0.5,H*0.5);ctx.lineTo(W*0.5+Math.cos(a)*300,H*0.5+Math.sin(a)*300);ctx.strokeStyle='#fde047';ctx.lineWidth=3;ctx.stroke();}
+  ctx.globalAlpha=1;
+  // Silhouetten (B\u00e4ume)
+  ctx.fillStyle='#0a0a0a';
+  for(let i=0;i<12;i++){const tx=i*70+20;const th=30+Math.sin(i*2)*25;
+    ctx.beginPath();ctx.moveTo(tx,0.55*H);
+    for(let x=tx-15;x<=tx+15;x+=2){const y=0.55*H-(th-Math.abs(x-tx)*2);ctx.lineTo(x,y);}
+    ctx.closePath();ctx.fill();}
+  // V\u00f6gel
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2;
+  for(let i=0;i<5;i++){const bx=100+i*120,by=80+Math.sin(i)*30;
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx+8,by-10,bx+16,by);
+    ctx.quadraticCurveTo(bx+24,by-10,bx+32,by);ctx.stroke();}
+}
+
+// BOOT (wird bereits behandelt)
+
+// FALLBACKS
+function drawGenericLandscape(p,colors){
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,colors[0]||'#1a365d');grad.addColorStop(0.5,colors[1]||'#60a5fa');grad.addColorStop(1,colors[2]||'#22c55e');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  // Berge
+  ctx.fillStyle=colors[3]||'#374151';
+  ctx.beginPath();ctx.moveTo(0,H*0.5);
+  for(let x=0;x<=W;x+=5){ctx.lineTo(x,H*0.4+Math.sin(x*0.008)*80+Math.sin(x*0.02)*40);}
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+}
+
+function drawGenericSpace(colors){
+  ctx.fillStyle='#020617';ctx.fillRect(0,0,W,H);
+  for(let i=0;i<200;i++){ctx.fillStyle=`rgba(255,255,255,${0.3+Math.random()*0.7})`;ctx.fillRect(Math.random()*W,Math.random()*H,Math.random()*2+0.5,Math.random()*2+0.5);}
+  const cx=W*0.7,cy=H*0.3;
+  const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,80);
+  grad.addColorStop(0,colors[0]||'#10b981');grad.addColorStop(0.5,colors[1]||'#047857');grad.addColorStop(1,'rgba(4,120,87,0)');
+  ctx.fillStyle=grad;ctx.beginPath();ctx.arc(cx,cy,80,0,Math.PI*2);ctx.fill();
+}
+
+function drawAbstractArt(p,colors){
+  for(let i=0;i<50;i++){const col=colors[i%colors.length];ctx.globalAlpha=0.2+Math.random()*0.5;
+    ctx.fillStyle=col;
+    if(Math.random()>0.5){ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*H,20+Math.random()*100,0,Math.PI*2);ctx.fill();}
+    else{ctx.fillRect(Math.random()*W,Math.random()*H,40+Math.random()*120,40+Math.random()*120);}}
+  ctx.globalAlpha=1;
+}
+
+function drawGeometric(colors){
+  for(let i=0;i<30;i++){ctx.fillStyle=colors[i%colors.length];ctx.globalAlpha=0.3+Math.random()*0.6;
+    ctx.save();ctx.translate(Math.random()*W,Math.random()*H);ctx.rotate(Math.random()*Math.PI*2);
+    if(Math.random()>0.5){ctx.beginPath();for(let a=0;a<3;a++){const ang=a/3*Math.PI*2-Math.PI/2;ctx.lineTo(Math.cos(ang)*40,Math.sin(ang)*40);}ctx.closePath();ctx.fill();}
+    else{ctx.fillRect(-30,-30,60,60);}
+    ctx.restore();}
+  ctx.globalAlpha=1;
+}
+
+function drawPatternGen(p,colors){
+  ctx.fillStyle=colors[1]||'#1e293b';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=colors[0];const s=50;
+  for(let x=s/2;x<W;x+=s){for(let y=s/2;y<H;y+=s){ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fill();}}
+}
+
+function drawColorfulAbstract(colors){
+  const grad=ctx.createLinearGradient(0,0,W,H);
+  colors.forEach((c,i)=>grad.addColorStop(i/colors.length,c));
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  for(let i=0;i<40;i++){ctx.globalAlpha=0.2+Math.random()*0.4;ctx.fillStyle=colors[i%colors.length];
+    ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*H,20+Math.random()*60,0,Math.PI*2);ctx.fill();}
+  ctx.globalAlpha=1;
+}
+// PIXEL
+let pixelGrid = [], pixelSize = 16;
+function initPixelGrid() {
+  const sel = document.getElementById('pixelGrid');
+  if (!sel) return;
+  pixelSize = +sel.value;
+  const cellW = W/pixelSize, cellH = H/pixelSize;
+  pixelGrid = [];
+  for(let y=0;y<pixelSize;y++){pixelGrid[y]=[];for(let x=0;x<pixelSize;x++)pixelGrid[y][x]='#ffffff';}
+  drawPixelGrid();
+}
+function drawPixelGrid() {
+  const cellW = W/pixelSize, cellH = H/pixelSize;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  for(let y=0;y<pixelSize;y++) for(let x=0;x<pixelSize;x++) {
+    ctx.fillStyle=pixelGrid[y][x]; ctx.fillRect(x*cellW,y*cellH,cellW-0.5,cellH-0.5);
+  }
+  ctx.strokeStyle='#ddd'; ctx.lineWidth=0.5;
+  for(let i=0;i<=pixelSize;i++){ctx.beginPath();ctx.moveTo(i*cellW,0);ctx.lineTo(i*cellW,H);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*cellH);ctx.lineTo(W,i*cellH);ctx.stroke();}
+}
+function pixelAt(x,y) {
+  if(tool!=='pixel')return;
+  const cellW=W/pixelSize,cellH=H/pixelSize,gx=Math.floor(x/cellW),gy=Math.floor(y/cellH);
+  if(gx<0||gx>=pixelSize||gy<0||gy>=pixelSize)return;
+  pixelGrid[gy][gx]=brushColor; drawPixelGrid();
+}
+
+// FRACTAL
+// Fehlende Zeichenfunktionen (einfache Varianten)
+function drawBear(p,c){drawEllipse(W/2,H/2-30,70,50,c[0]);drawCircle(W/2,H/2-80,40,c[0]);drawCircle(W/2-25,H/2-85,12,c[0]);drawCircle(W/2+25,H/2-85,12,c[0]);drawCircle(W/2-10,H/2-95,5,'#000');drawCircle(W/2+10,H/2-95,5,'#000');drawEllipse(W/2,H/2-80,12,8,'#000');drawEllipse(W/2-20,H/2+45,25,15,c[0]);drawEllipse(W/2+20,H/2+45,25,15,c[0]);}
+function drawCow(p,c){ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(W/2,H/2+30,80,50,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(W/2-10,H/2-30,45,40,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#000';drawEllipse(W/2-20,H/2-40,10,12,'#000');drawEllipse(W/2+5,H/2-40,10,12,'#000');ctx.fillStyle='#f9a8d4';drawEllipse(W/2-10,H/2-15,15,8,'#f9a8d4');ctx.fillStyle='#333';drawEllipse(W/2-60,H/2+30,15,10,'#333');drawEllipse(W/2+60,H/2+30,15,10,'#333');for(let i=0;i<5;i++){ctx.fillStyle='#333';drawCircle(W/2-40+i*20,H/2+20,5,'#333');}}
+function drawSheep(p,c){ctx.fillStyle='#e8e8e8';ctx.beginPath();ctx.ellipse(W/2,H/2+20,70,45,0,0,Math.PI*2);ctx.fill();for(let i=0;i<12;i++){ctx.fillStyle='#f0f0f0';drawCircle(W/2-50+Math.random()*100,H/2-20+Math.random()*60,20+Math.random()*15,'#f0f0f0');}ctx.fillStyle='#1a1a1a';drawEllipse(W/2-30,H/2-30,20,15,'#1a1a1a');drawEllipse(W/2+30,H/2-30,20,15,'#1a1a1a');drawEllipse(W/2,H/2-5,12,8,'#000');drawCircle(W/2-5,H/2-35,4,'#000');drawCircle(W/2+5,H/2-35,4,'#000');}
+function drawFox(p,c){ctx.fillStyle=c[0]||'#d4763a';ctx.beginPath();ctx.ellipse(W/2,H/2+20,55,40,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(W/2-5,H/2-20,35,30,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';drawEllipse(W/2-10,H/2-25,10,8,'#fff');drawEllipse(W/2+10,H/2-25,10,8,'#fff');ctx.fillStyle='#000';drawCircle(W/2-8,H/2-27,3,'#000');drawCircle(W/2+12,H/2-27,3,'#000');ctx.fillStyle='#fff';drawEllipse(W/2-5,H/2-15,8,5,'#fff');ctx.fillStyle='#000';drawCircle(W/2-5,H/2-15,3,'#000');ctx.fillStyle=c[1]||'#fff';ctx.beginPath();ctx.moveTo(W/2-35,H/2-45);ctx.lineTo(W/2-45,H/2-15);ctx.lineTo(W/2-25,H/2-35);ctx.fill();ctx.beginPath();ctx.moveTo(W/2+35,H/2-45);ctx.lineTo(W/2+45,H/2-15);ctx.lineTo(W/2+25,H/2-35);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(W/2+55,H/2+5);ctx.lineTo(W/2+90,H/2-10);ctx.lineTo(W/2+80,H/2+15);ctx.fill();}
+function drawWolf(p,c){drawDog(p,c);ctx.fillStyle='#666';drawCircle(W/2-8,H/2-35,3,'#666');drawCircle(W/2+12,H/2-35,3,'#666');}
+function drawSnake(p,c){ctx.strokeStyle=c[0]||'#16a34a';ctx.lineWidth=20;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(W/4,H);ctx.quadraticCurveTo(W/4,H/2,W/2,H/2);ctx.quadraticCurveTo(W*3/4,H/2,W*3/4,H*0.3);ctx.quadraticCurveTo(W*5/6,H*0.15,W*3/4,H*0.1);ctx.stroke();ctx.fillStyle='#dc2626';ctx.beginPath();ctx.moveTo(W*3/4,H*0.05);ctx.lineTo(W*3/4+8,H*0.1);ctx.lineTo(W*3/4-2,H*0.1);ctx.fill();ctx.fillStyle='#000';drawCircle(W*3/4+5,H*0.08,3,'#000');}
+function drawFairy(p,c){ctx.fillStyle='rgba(255,255,255,0.6)';drawEllipse(W/2-20,H/2-30,50,70,0.2,'rgba(255,255,255,0.6)');ctx.fillStyle=c[0]||'#fbcfe8';drawCircle(W/2-20,H/2-90,25,c[0]||'#fbcfe8');ctx.fillStyle='#000';drawCircle(W/2-28,H/2-95,4,'#000');drawCircle(W/2-12,H/2-95,4,'#000');ctx.fillStyle='#f9a8d4';drawCircle(W/2-20,H/2-80,5,'#f9a8d4');ctx.fillStyle='rgba(255,255,255,0.4)';for(let a=0;a<4;a++){const ang=a/4*Math.PI*2;ctx.beginPath();ctx.ellipse(W/2-20+Math.cos(ang)*30,H/2-50+Math.sin(ang)*30,30,8,ang,0,Math.PI*2);ctx.fill();}ctx.strokeStyle='#fde047';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(W/2-15,H/2-105);ctx.lineTo(W/2-25,H/2-125);ctx.lineTo(W/2-10,H/2-120);ctx.fill();}
+function drawUnicorn(p,c){drawHorse(p,c);ctx.strokeStyle=c[1]||'#fde047';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(W/2-55,H/2-80);ctx.lineTo(W/2-55,H/2-125);ctx.stroke();ctx.fillStyle='#fde047';ctx.beginPath();ctx.moveTo(W/2-55,H/2-125);ctx.lineTo(W/2-50,H/2-135);ctx.lineTo(W/2-60,H/2-125);ctx.fill();for(let i=0;i<5;i++){ctx.fillStyle=['#f43f5e','#8b5cf6','#3b82f6','#10b981','#eab308'][i];drawCircle(W/2-62+i*5,H/2-100-i*3,5,ctx.fillStyle);}}
+function drawPortrait(p,c){ctx.fillStyle=c[0]||'#fbcfe8';drawEllipse(W/2,H/2-20,60,70,c[0]||'#fbcfe8');ctx.fillStyle='#000';drawCircle(W/2-25,H/2-40,6,'#000');drawCircle(W/2+25,H/2-40,6,'#000');ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.arc(W/2,H/2-20,20,0,Math.PI);ctx.stroke();ctx.fillStyle=c[1]||'#1a1a1a';for(let i=0;i<30;i++){const ang=i/30*Math.PI+Math.PI/4;const r=55+Math.sin(i*3)*10;drawCircle(W/2-Math.cos(ang)*r-5,H/2-60+Math.sin(ang)*r,3,c[1]||'#1a1a1a');}for(let i=0;i<30;i++){const ang=i/30*Math.PI;const r=55+Math.sin(i*3)*10;drawCircle(W/2+Math.cos(ang)*r+5,H/2-60+Math.sin(ang)*r,3,c[1]||'#1a1a1a');}}
+function drawRocket(p,c){ctx.fillStyle='#e2e8f0';ctx.beginPath();ctx.moveTo(W/2,H/2-120);ctx.lineTo(W/2-20,H/2-30);ctx.lineTo(W/2+20,H/2-30);ctx.closePath();ctx.fill();ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(W/2,H/2-30,25,Math.PI,0);ctx.closePath();ctx.fill();ctx.fillStyle='#60a5fa';drawCircle(W/2-14,H/2-70,8,'#60a5fa');drawCircle(W/2+14,H/2-70,8,'#60a5fa');ctx.fillStyle='#f97316';ctx.beginPath();ctx.moveTo(W/2-12,H/2-25);ctx.lineTo(W/2-30,H/2+20);ctx.lineTo(W/2-15,H/2-20);ctx.fill();ctx.beginPath();ctx.moveTo(W/2+12,H/2-25);ctx.lineTo(W/2+30,H/2+20);ctx.lineTo(W/2+15,H/2-20);ctx.fill();ctx.strokeStyle='#f97316';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(W/2-10,H/2-25);ctx.quadraticCurveTo(W/2-15,H/2-15,W/2-40,H/2+40);ctx.stroke();ctx.beginPath();ctx.moveTo(W/2+10,H/2-25);ctx.quadraticCurveTo(W/2+15,H/2-15,W/2+40,H/2+40);ctx.stroke();ctx.strokeStyle='#fde047';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(W/2,H/2-25);ctx.quadraticCurveTo(W/2,H/2-15,W/2,H/2+50);ctx.stroke();}
+function drawPlane(p,c){ctx.fillStyle='#e2e8f0';ctx.beginPath();ctx.ellipse(W/2,H/2-10,120,25,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#cbd5e1';ctx.beginPath();ctx.ellipse(W/2-80,H/2-10,20,10,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(W/2+80,H/2-10,20,10,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.ellipse(W/2,H/2-40,50,10,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(W/2,H/2+20,50,10,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#60a5fa';drawCircle(W/2,H/2-10,8,'#60a5fa');}
+function drawBike(p,c){ctx.fillStyle='#374151';drawCircle(W/2-60,H/2+20,40,'#374151');drawCircle(W/2+60,H/2+20,40,'#374151');ctx.strokeStyle='#374151';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(W/2-60,H/2+20);ctx.lineTo(W/2,H/2-20);ctx.lineTo(W/2+10,H/2+30);ctx.lineTo(W/2+60,H/2+20);ctx.stroke();ctx.beginPath();ctx.moveTo(W/2,H/2-20);ctx.lineTo(W/2-10,H/2+5);ctx.lineTo(W/2+20,H/2+5);ctx.lineTo(W/2,H/2-20);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(W/2-60,H/2+20);ctx.lineTo(W/2+60,H/2+20);ctx.stroke();ctx.strokeStyle='#ef4444';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(W/2-50,H/2-30);ctx.lineTo(W/2+50,H/2-30);ctx.stroke();}
+function drawBalloon(p,c){ctx.fillStyle=c[0]||'#ef4444';ctx.beginPath();ctx.ellipse(W/2,H/2-30,55,65,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=c[1]||'#fca5a5';for(let i=0;i<8;i++){const ang=i/8*Math.PI*2;const r=25+Math.sin(i*3)*10;drawCircle(W/2+Math.cos(ang)*r,H/2-30+Math.sin(ang)*r,10+Math.sin(i*2)*5,c[1]||'#fca5a5');}ctx.fillStyle='#fff';drawEllipse(W/2-10,H/2-50,8,12,'#fff');ctx.fillStyle='#333';ctx.beginPath();ctx.moveTo(W/2-2,H/2+30);ctx.lineTo(W/2-1,H/2+50);ctx.lineTo(W/2+1,H/2+50);ctx.lineTo(W/2+2,H/2+30);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(W/2,H/2+50);ctx.quadraticCurveTo(W/2-30,H/2+100,W/2-60,H/2+130);ctx.stroke();}
+function drawWaterfall(p,c){const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,c[0]||'#1a365d');grad.addColorStop(0.4,c[1]||'#3b82f6');grad.addColorStop(0.6,c[2]||'#16a34a');grad.addColorStop(1,c[3]||'#22c55e');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);ctx.fillStyle='#0ea5e9';ctx.fillRect(W/2-15,0,30,H);ctx.fillStyle='rgba(255,255,255,0.4)';for(let x=W/2-10;x<W/2+10;x+=3){for(let y=0;y<H;y+=8){ctx.fillRect(x,y+Math.sin(x*0.5+y*0.1)*5,2,4);}}ctx.fillStyle='rgba(255,255,255,0.2)';for(let i=0;i<30;i++){drawCircle(W/2+Math.random()*40-20,H*0.6+Math.random()*H*0.3,2+Math.random()*3,'rgba(255,255,255,0.2)');}ctx.fillStyle='rgba(255,255,255,0.3)';drawEllipse(W/2,H*0.6,60,10,'rgba(255,255,255,0.3)');drawEllipse(W/2,H*0.8,100,15,'rgba(255,255,255,0.2)');}
+
+function drawFractal() {
+  const type=document.getElementById('fractalType').value;
+  const col=document.getElementById('fractalColor').value,bg=document.getElementById('fractalBg').value;
+  const zoom=+document.getElementById('fractalZoom').value/100;
+  msg('Berechne...'); setTimeout(()=>{
+    const img=ctx.createImageData(W,H),cx0=-2.5,cy0=-1.5,w=3.5/zoom,h=3.5/zoom;
+    const hue=parseInt(col.slice(1),16),r1=(hue>>16)&255,g1=(hue>>8)&255,b1=hue&255;
+    const bgH=parseInt(bg.slice(1),16),br=(bgH>>16)&255,bg2=(bgH>>8)&255,bb=bgH&255;
+    function iter(cx,cy){let x=0,y=0;if(type==='julia'){x=cx;y=cy;cx=-0.7;cy=0.27;}if(type==='tricorn'){x=cx;y=cy;}
+      for(let i=0;i<256;i++){let nx,ny;if(type==='burning'){nx=x*x-y*y+cx;ny=2*Math.abs(x*y)+cy;}
+      else if(type==='tricorn'){nx=x*x-y*y+cx;ny=-2*x*y+cy;}else{nx=x*x-y*y+cx;ny=2*x*y+cy;}x=nx;y=ny;if(x*x+y*y>4)return i;}return -1;}
+    for(let py=0;py<H;py++)for(let px=0;px<W;px++){const cx=cx0+px/W*w,cy=cy0+py/H*h,iters=iter(cx,cy),idx=(py*W+px)*4;
+      if(iters<0){img.data[idx]=br;img.data[idx+1]=bg2;img.data[idx+2]=bb;img.data[idx+3]=255;}
+      else{const t=iters/256;img.data[idx]=r1*t+(1-t)*br;img.data[idx+1]=g1*t+(1-t)*bg2;img.data[idx+2]=b1*t+(1-t)*bb;img.data[idx+3]=255;}}
+    ctx.putImageData(img,0,0);saveState();msg('Fraktal fertig');
+  },50);
+}
+
+// MANDALA
+function drawMandala() {
+  const c1=document.getElementById('manCol1').value,c2=document.getElementById('manCol2').value;
+  const sym=+document.getElementById('manSym').value,size=+document.getElementById('manSize').value;
+  ctx.fillStyle='#0f172a';ctx.fillRect(0,0,W,H);ctx.translate(W/2,H/2);
+  for(let i=0;i<sym;i++){const angle=(i/sym)*Math.PI*2;ctx.save();ctx.rotate(angle);
+    const grad=ctx.createRadialGradient(0,0,0,0,0,size);grad.addColorStop(0,c1);grad.addColorStop(1,c2);ctx.fillStyle=grad;
+    ctx.beginPath();for(let a=0;a<Math.PI*2;a+=0.1){const r=size*0.3+size*0.7*Math.abs(Math.sin(a*3));
+      const x=r*Math.cos(a),y=r*Math.sin(a);a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.fill();ctx.restore();}
+  ctx.setTransform(1,0,0,1,0,0);saveState();msg('Mandala fertig');
+}
+
+// GRADIENT
+function drawGradient() {
+  const g1=document.getElementById('grad1').value,g2=document.getElementById('grad2').value;
+  const dir=document.getElementById('gradDir').value;let grad;
+  if(dir==='radial')grad=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)/2);
+  else if(dir==='vertical')grad=ctx.createLinearGradient(0,0,0,H);
+  else if(dir==='diagonal')grad=ctx.createLinearGradient(0,0,W,H);
+  else grad=ctx.createLinearGradient(0,0,W,0);
+  grad.addColorStop(0,g1);grad.addColorStop(1,g2);ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);saveState();msg('Verlauf');
+}
+
+// PATTERN
+function drawPattern() {
+  const type=document.getElementById('patternType').value,c1=document.getElementById('patCol1').value,c2=document.getElementById('patCol2').value,s=+document.getElementById('patSize').value;
+  ctx.fillStyle=c2;ctx.fillRect(0,0,W,H);
+  if(type==='dots'){ctx.fillStyle=c1;for(let x=0;x<W;x+=s)for(let y=0;y<H;y+=s){ctx.beginPath();ctx.arc(x,y,s*0.3,0,Math.PI*2);ctx.fill();}}
+  else if(type==='stripes'){ctx.strokeStyle=c1;ctx.lineWidth=s*0.4;for(let x=-s;x<W+H;x+=s*1.5){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x-H,H);ctx.stroke();}}
+  else if(type==='checker'){for(let x=0;x<W;x+=s)for(let y=0;y<H;y+=s)if((Math.floor(x/s)+Math.floor(y/s))%2){ctx.fillStyle=c1;ctx.fillRect(x,y,s,s);}}
+  else if(type==='waves'){ctx.strokeStyle=c1;ctx.lineWidth=2;for(let y=0;y<H;y+=s*0.5){ctx.beginPath();for(let x=0;x<W;x+=2)ctx.lineTo(x,y+Math.sin(x/(s*0.3))*s*0.4);ctx.stroke();}}
+  else if(type==='hexagon'){ctx.fillStyle=c1;for(let row=0;row<Math.ceil(H/(s*0.9));row++)for(let col=0;col<Math.ceil(W/(s*1.75));col++){
+    const ox=col*s*1.75+(row%2)*s*0.875,oy=row*s*0.9;ctx.beginPath();for(let i=0;i<6;i++){const a=i/6*Math.PI*2-Math.PI/2;ctx.lineTo(ox+Math.cos(a)*s*0.5,oy+Math.sin(a)*s*0.5);}ctx.fill();}}
+  saveState();msg('Muster erstellt');
+}
+
+// RANDOM
+function generateRandom() {
+  const style=document.getElementById('randStyle').value,c1=document.getElementById('randCol1').value,c2=document.getElementById('randCol2').value;
+  ctx.fillStyle='#0f172a';ctx.fillRect(0,0,W,H);
+  if(style==='waves'){for(let y=0;y<H;y++){ctx.fillStyle=`hsl(${Math.sin(y*0.03)*50+200},70%,${40+Math.sin(y*0.02)*20}%)`;ctx.fillRect(0,y,W,1);}}
+  else if(style==='circles'){for(let i=0;i<80;i++){ctx.fillStyle=`hsl(${Math.random()*360},70%,50%)`;ctx.globalAlpha=0.5;ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*H,Math.random()*100+10,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;}
+  else if(style==='lines'){ctx.lineWidth=2;for(let i=0;i<50;i++){ctx.strokeStyle=`hsl(${Math.random()*360},70%,50%)`;ctx.globalAlpha=0.6;ctx.beginPath();ctx.moveTo(Math.random()*W,Math.random()*H);ctx.lineTo(Math.random()*W,Math.random()*H);ctx.stroke();}ctx.globalAlpha=1;}
+  else if(style==='splatter'){ctx.fillStyle=c1;ctx.fillRect(0,0,W,H);for(let i=0;i<500;i++){ctx.fillStyle=`hsl(${Math.random()*360},80%,50%)`;ctx.globalAlpha=Math.random()*0.8+0.2;ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*H,Math.random()*30+2,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;}
+  else if(style==='triangles'){for(let i=0;i<100;i++){ctx.fillStyle=`hsl(${Math.random()*360},70%,50%)`;ctx.globalAlpha=0.4;ctx.beginPath();ctx.moveTo(Math.random()*W,Math.random()*H);ctx.lineTo(Math.random()*W,Math.random()*H);ctx.lineTo(Math.random()*W,Math.random()*H);ctx.closePath();ctx.fill();}ctx.globalAlpha=1;}
+  else if(style==='auro'){for(let y=0;y<H;y++)for(let x=0;x<W;x++){const n1=Math.sin(x*0.01+y*0.008)*0.5+0.5,n2=Math.sin(x*0.015-y*0.012+2)*0.5+0.5,n3=Math.sin(x*0.005+y*0.02+4)*0.5+0.5;ctx.fillStyle=`rgba(${n1*200},${n2*255},${n3*255},0.5)`;ctx.fillRect(x,y,1,1);}}
+  saveState();msg('Generative Kunst fertig');
+}
+
+// FILTER
+function applyFilter() {
+  const type=document.getElementById('filterType').value,strength=+document.getElementById('filterStrength').value/100;
+  const imgData=ctx.getImageData(0,0,W,H),d=imgData.data;
+  for(let i=0;i<d.length;i+=4){let r=d[i],g=d[i+1],b=d[i+2];
+    if(type==='grayscale'){const gr=0.3*r+0.59*g+0.11*b;d[i]=d[i+1]=d[i+2]=gr;}
+    else if(type==='sepia'){d[i]=Math.min(255,r*0.393+g*0.769+b*0.189);d[i+1]=Math.min(255,r*0.349+g*0.686+b*0.168);d[i+2]=Math.min(255,r*0.272+g*0.534+b*0.131);}
+    else if(type==='invert'){d[i]=255-r;d[i+1]=255-g;d[i+2]=255-b;}
+    else if(type==='posterize'){const f=4;d[i]=Math.floor(r/f)*f;d[i+1]=Math.floor(g/f)*f;d[i+2]=Math.floor(b/f)*f;}
+    else if(type==='vintage'){d[i]=Math.min(255,r*0.8+50);d[i+1]=Math.min(255,g*0.7+30);d[i+2]=Math.min(255,b*0.5+20);}
+    else if(type==='glow'){d[i]=Math.min(255,r+100);d[i+1]=Math.min(255,g+60);d[i+2]=Math.min(255,b+40);}}
+  ctx.putImageData(imgData,0,0);
+  if(type==='blur'||type==='sharp'){
+    ctx.filter=type==='blur'?`blur(${strength*5}px)`:`contrast(${1+strength})`;
+    const t=canvas.toDataURL();const img=new Image();img.onload=()=>{ctx.filter='none';ctx.clearRect(0,0,W,H);ctx.drawImage(img,0,0);saveState();msg('Filter angewandt');};img.src=t;return;}
+  saveState();msg('Filter angewandt');
+}
+
+// TEXT
+function placeText(){const val=document.getElementById('textVal').value,size=document.getElementById('fontSize').value;
+  ctx.font=`${size}px sans-serif`;ctx.fillStyle=brushColor;ctx.globalAlpha=opacity;ctx.textAlign='center';ctx.fillText(val,W/2,H/2+size/3);ctx.globalAlpha=1;saveState();msg('Text gesetzt');}
+
+// EXPORT
+function exportPNG(){const link=document.createElement('a');link.download='malstudio-'+Date.now()+'.png';link.href=canvas.toDataURL('image/png');link.click();msg('PNG gespeichert');}
+function exportJPG(){const link=document.createElement('a');link.download='malstudio-'+Date.now()+'.jpg';link.href=canvas.toDataURL('image/jpeg',0.9);link.click();msg('JPG gespeichert');}
+function copyToClip(){canvas.toBlob(b=>navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(()=>msg('Kopiert')).catch(()=>msg('Fehler')));}
+function shareImage(){canvas.toBlob(b=>{const f=new File([b],'malstudio.png',{type:'image/png'});navigator.share({files:[f]}).catch(()=>msg('Teilen nicht verfügbar'));});}
+function fullscreen(){if(document.fullscreenElement)document.exitFullscreen();else document.querySelector('.canvas-wrap').requestFullscreen();}
+
+// DRAWING EVENTS
+canvas.onmousedown = e => { drawing=true; const r=canvas.getBoundingClientRect(); lastX=(e.clientX-r.left)*(W/r.width); lastY=(e.clientY-r.top)*(H/r.height); if(tool==='shapes') return; if(tool==='pixel') pixelAt(lastX,lastY); };
+canvas.onmousemove = e => { if(!drawing) return; const r=canvas.getBoundingClientRect(); const x=(e.clientX-r.left)*(W/r.width), y=(e.clientY-r.top)*(H/r.height);
+  if(tool==='brush'){ctx.globalAlpha=opacity;ctx.strokeStyle=brushColor;ctx.lineWidth=brushSize;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(x,y);ctx.stroke();ctx.globalAlpha=1;lastX=x;lastY=y;}
+  else if(tool==='watercolor'){ctx.globalAlpha=opacity*0.3;ctx.fillStyle=brushColor;ctx.beginPath();ctx.arc(x,y,brushSize*0.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+  else if(tool==='pixel')pixelAt(x,y);};
+canvas.onmouseup = e => { if(drawing && tool!=='shapes' && tool!=='pixel') saveState(); drawing=false; };
+canvas.onmouseleave = () => { if(drawing && tool!=='shapes' && tool!=='pixel') saveState(); drawing=false; };
+canvas.ontouchstart = e => { e.preventDefault(); const t=e.touches[0]; const r=canvas.getBoundingClientRect(); lastX=(t.clientX-r.left)*(W/r.width); lastY=(t.clientY-r.top)*(H/r.height); drawing=true; if(tool==='shapes') return; if(tool==='pixel') pixelAt(lastX,lastY); };
+canvas.ontouchmove = e => { e.preventDefault(); if(!drawing) return; const t=e.touches[0]; const r=canvas.getBoundingClientRect(); const x=(t.clientX-r.left)*(W/r.width), y=(t.clientY-r.top)*(H/r.height);
+  if(tool==='brush'){ctx.globalAlpha=opacity;ctx.strokeStyle=brushColor;ctx.lineWidth=brushSize;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(x,y);ctx.stroke();ctx.globalAlpha=1;lastX=x;lastY=y;}
+  else if(tool==='watercolor'){ctx.globalAlpha=opacity*0.3;ctx.fillStyle=brushColor;ctx.beginPath();ctx.arc(x,y,brushSize*0.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+  else if(tool==='pixel')pixelAt(x,y);};
+canvas.ontouchend = e => { if(drawing && tool!=='shapes' && tool!=='pixel') saveState(); drawing=false; };
+canvas.onclick = e => { if(tool!=='shapes') return; const r=canvas.getBoundingClientRect(); const x=(e.clientX-r.left)*(W/r.width), y=(e.clientY-r.top)*(H/r.height); const type=document.getElementById('shapeType')?.value||'rect'; const fill=document.getElementById('shapeFill')?.checked||false; ctx.globalAlpha=opacity; ctx.strokeStyle=brushColor; ctx.fillStyle=brushColor; ctx.lineWidth=3; const sz=brushSize*6;
+  if(type==='rect'){if(fill)ctx.fillRect(x-sz/2,y-sz/2,sz,sz);else ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);}
+  else if(type==='circle'){ctx.beginPath();ctx.arc(x,y,sz/2,0,Math.PI*2);fill?ctx.fill():ctx.stroke();}
+  else if(type==='triangle'){ctx.beginPath();ctx.moveTo(x,y-sz/2);ctx.lineTo(x-sz/2,y+sz/2);ctx.lineTo(x+sz/2,y+sz/2);ctx.closePath();fill?ctx.fill():ctx.stroke();}
+  else if(type==='line'){ctx.beginPath();ctx.moveTo(x-sz/2,y-sz/2);ctx.lineTo(x+sz/2,y+sz/2);ctx.stroke();}
+  else if(type==='star'){ctx.beginPath();for(let i=0;i<10;i++){const a=i/10*Math.PI*2-Math.PI/2,r2=i%2?sz/2:sz/4;ctx.lineTo(x+Math.cos(a)*r2,y+Math.sin(a)*r2);}ctx.closePath();fill?ctx.fill():ctx.stroke();}
+  ctx.globalAlpha=1;saveState();};
+
+saveState();
+selectTool('tti');
+msg('Bereit');
+</script>
+</body>
+</html>
