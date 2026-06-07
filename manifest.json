@@ -1,6 +1,6 @@
 {
-  "name": "MalStudio 🍀",
-  "short_name": "3🍀",
+  "name": "MalStudio \u2728 KI-Bild",
+  "short_name": "MalStudio \u2728",
   "description": "KI-Bildgenerator mit Pollinations, Hugging Face & Algorithmus",
   "start_url": "https://derkarnix-hue.github.io/malstudio/malstudio.html",
   "scope": "https://derkarnix-hue.github.io/malstudio/",
@@ -9,7 +9,15 @@
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }

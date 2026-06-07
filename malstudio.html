@@ -321,147 +321,7 @@ function renderControls() {
 
 // ===== TEXT-TO-IMAGE GENERATOR (Universal) =====
 
-function generateTTI() {
-  const prompt = document.getElementById('ttiPrompt').value.trim();
-  const style = document.getElementById('ttiStyle').value;
-  const palette = document.getElementById('ttiPalette').value;
-  const provider = document.getElementById('ttiProvider').value;
-  if (!prompt) { msg('Bitte etwas eingeben!'); return; }
-  
-  const p = prompt.toLowerCase();
-  const progress = document.getElementById('ttiProgress');
-  if (progress) progress.textContent = '';
-  
-  ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
-  
-  if (provider === 'algorithmic') {
-    generateWithAlgorithm(prompt, p, style, palette);
-  } else if (provider === 'pollinations') {
-    generateWithPollinations(prompt, p, style, palette, progress);
-  } else if (provider === 'huggingface') {
-    generateWithHuggingFace(prompt, p, style, palette, progress);
-  } else {
-    if (progress) progress.textContent = '🔄 Versuche Pollinations KI...';
-    generateWithPollinations(prompt, p, style, palette, progress);
-  }
-}
 
-function progressMsg(el, text) {
-  if (el) el.textContent = text;
-}
-
-function generateWithPollinations(prompt, p, style, palette, progress) {
-  msg('🎨 KI generiert Bild...');
-  progressMsg(progress, '🤖 Kontaktiere Pollinations...');
-  
-  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
-              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true';
-  
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  
-  const timeout = setTimeout(() => {
-    progressMsg(progress, '⏱️ Pollinations Zeitüberschreitung → Fallback');
-    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-  }, 15000);
-  
-  img.onload = function() {
-    clearTimeout(timeout);
-    msg('✅ KI-Bild empfangen!');
-    progressMsg(progress, '✅ Fertig!');
-    ctx.clearRect(0,0,W,H);
-    ctx.drawImage(img, 0, 0, W, H);
-    saveState();
-  };
-  
-  img.onerror = function() {
-    clearTimeout(timeout);
-    const img2 = new Image();
-    const timeout2 = setTimeout(() => {
-      progressMsg(progress, '⏱️ Keine Antwort → Algorithmus');
-      setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-    }, 10000);
-    img2.onload = function() {
-      clearTimeout(timeout2);
-      msg('✅ KI-Bild empfangen!');
-      progressMsg(progress, '✅ Fertig!');
-      ctx.clearRect(0,0,W,H);
-      ctx.drawImage(img2, 0, 0, W, H);
-      saveState();
-    };
-    img2.onerror = function() {
-      clearTimeout(timeout2);
-      if (document.getElementById('ttiProvider').value === 'auto') {
-        progressMsg(progress, '🔄 Pollinations nicht verfügbar → Hugging Face...');
-        generateWithHuggingFace(prompt, p, style, palette, progress);
-      } else {
-        progressMsg(progress, '⚠️ Pollinations nicht verfügbar');
-        msg('⚠️ KI-API nicht erreichbar');
-        setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-      }
-    };
-    img2.src = url;
-  };
-  
-  img.src = url;
-}
-
-function generateWithHuggingFace(prompt, p, style, palette, progress) {
-  msg('🧠 Hugging Face generiert...');
-  progressMsg(progress, '🧠 Kontaktiere Hugging Face...');
-  
-  const models = ['stabilityai/stable-diffusion-xl-base-1.0', 'runwayml/stable-diffusion-v1-5', 'prompthero/openjourney-v4'];
-  const model = models[Math.floor(Math.random() * models.length)];
-  
-  fetch('https://api-inference.huggingface.co/models/' + model, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputs: prompt })
-  })
-  .then(res => {
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.blob();
-  })
-  .then(blob => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = function() {
-      msg('✅ Hugging Face Bild empfangen!');
-      progressMsg(progress, '✅ Fertig!');
-      ctx.clearRect(0,0,W,H);
-      ctx.drawImage(img, 0, 0, W, H);
-      saveState();
-      URL.revokeObjectURL(url);
-    };
-    img.onerror = function() {
-      URL.revokeObjectURL(url);
-      if (document.getElementById('ttiProvider').value === 'auto') {
-        progressMsg(progress, '🔄 Hugging Face nicht verfügbar → Algorithmus');
-        generateWithAlgorithm(prompt, p, style, palette);
-      } else {
-        progressMsg(progress, '⚠️ Hugging Face Fehler');
-        msg('⚠️ KI-API Fehler');
-      }
-    };
-    img.src = url;
-  })
-  .catch(err => {
-    progressMsg(progress, '⚠️ HF: ' + err.message.substring(0, 20));
-    if (document.getElementById('ttiProvider').value === 'auto') {
-      setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
-    } else {
-      msg('⚠️ Hugging Face: ' + err.message.substring(0, 40));
-    }
-  });
-}
-
-function generateWithAlgorithm(prompt, p, style, palette) {
-  msg('🎨 Zeichne...');
-  const progress = document.getElementById('ttiProgress');
-  if (progress) progress.textContent = '🎨 Zeichne algorithmisch...';
-  fallbackGenerate(prompt, p, style, palette);
-  if (progress) progress.textContent = '✅ Fertig (algorithmisch)';
-}
 
 
 // ===== PROMPT-VERBESSERUNG =====
@@ -695,12 +555,6 @@ function generateWithDeepAI(prompt, p, style, palette, progress) {
   img.src = url;
 }
 
-// ===== ERWEITERTE generateTTI MIT PARAMETERN =====
-const originalGenerateTTI = generateTTI;
-const originalGenerateWithPollinations = generateWithPollinations;
-const originalGenerateWithHuggingFace = generateWithHuggingFace;
-const originalGenerateWithAlgorithm = generateWithAlgorithm;
-
 // Überschreibe generateTTI
 generateTTI = function() {
   const prompt = document.getElementById('ttiPrompt').value.trim();
@@ -784,7 +638,7 @@ generateWithPollinations = function(prompt, p, style, palette, progress) {
       const provider = document.getElementById('ttiProvider').value;
       if (provider === 'auto') {
         progressMsg(progress, '🔄 Pollinations nicht verfügbar → Hugging Face...');
-        originalGenerateWithHuggingFace(prompt, p, style, palette, progress);
+        generateWithHuggingFace(prompt, p, style, palette, progress);
       } else {
         progressMsg(progress, '⚠️ Nicht verfügbar');
         msg('⚠️ KI-API nicht erreichbar');
@@ -1895,11 +1749,6 @@ function generateWithGitHubModels(prompt, p, style, palette, progress) {
 }
 
 // ===== ERWEITERTE HUGGING FACE MIT MODELLAUSWAHL =====
-// Überschreibe generateWithHuggingFace (falls vorhanden)
-if (typeof generateWithHuggingFace_original === 'undefined') {
-  var generateWithHuggingFace_original = typeof generateWithHuggingFace !== 'undefined' ? generateWithHuggingFace : null;
-}
-
 generateWithHuggingFace = function(prompt, p, style, palette, progress) {
   const modelSelect = document.getElementById('hfModelSelect');
   const model = modelSelect ? modelSelect.value : 'stabilityai/stable-diffusion-xl-base-1.0';
@@ -2020,11 +1869,6 @@ function handleDeepAIFallback(prompt, p, style, palette, progress) {
 }
 
 // ===== GENERATE TTI UPDATED =====
-// Original sichern falls schon definiert
-if (typeof generateTTI_original === 'undefined') {
-  var generateTTI_original = typeof generateTTI !== 'undefined' ? generateTTI : null;
-}
-
 generateTTI = function() {
   const prompt = document.getElementById('ttiPrompt').value.trim();
   const style = document.getElementById('ttiStyle').value;
