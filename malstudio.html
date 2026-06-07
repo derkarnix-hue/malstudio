@@ -1740,6 +1740,21 @@ if("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
   });
 }
+
+
+// URL-Parameter auslesen
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const prompt = params.get('prompt');
+  if (prompt) {
+    const ta = document.getElementById('ttiPrompt');
+    if (ta) {
+      ta.value = prompt;
+      setTimeout(() => generateTTI(), 500);
+    }
+  }
+})();
+
 </script>
 </body>
 </html>
