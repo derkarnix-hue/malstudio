@@ -142,7 +142,8 @@ function renderControls() {
               <option value=pollinations>🤖 Pollinations (KI)</option>
               <option value=auto>🔄 Auto (KI → Algorithmus)</option>
             </select></label>
-            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 ECHTES KI-BILD</button>
+            <button onclick="enhanceWithLLM()" title="Prompt mit KI verbessern" style="background:#f59e0b;">🧠 LLM</button>
+            <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 GENERIEREN</button>
             <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
           </div>
           <div id="ttiProgress" style="color:#8b5cf6;font-size:12px;margin-top:4px;"></div>
@@ -1294,6 +1295,97 @@ canvas.onclick = e => { if(tool!=='shapes') return; const r=canvas.getBoundingCl
 saveState();
 selectTool('tti');
 msg('Bereit');
+
+
+// ===== LLM PROMPT VERBESSERUNG (OpenRouter + Pollinations) =====
+function enhanceWithLLM() {
+  const ta = document.getElementById('ttiPrompt');
+  const prompt = ta.value.trim();
+  if (!prompt) { msg('Bitte zuerst einen Prompt eingeben!'); return; }
+  
+  const progress = document.getElementById('ttiProgress');
+  if (progress) progress.textContent = '🧠 Verbessere Prompt mit KI...';
+  msg('🧠 KI verbessert Prompt...');
+  
+  // Versuche OpenRouter (braucht API-Key)
+  const key = localStorage.getItem('malstudio_openrouter_key');
+  if (key) {
+    callOpenRouter(prompt, ta, progress);
+  } else {
+    // Fallback: Pollinations Text API (kein Key nötig)
+    callPollinationsText(prompt, ta, progress);
+  }
+}
+
+function callOpenRouter(prompt, ta, progress) {
+  const key = localStorage.getItem('malstudio_openrouter_key');
+  
+  fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key,
+      'HTTP-Referer': 'https://malstudio.github.io'
+    },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-3.2-3b-instruct:free',
+      messages: [
+        {role: 'system', content: 'Du verbesserst Bild-Prompts. Füge Details, Stil und Qualitätsbegriffe hinzu. Antworte NUR mit dem verbesserten Prompt auf Deutsch.'},
+        {role: 'user', content: prompt}
+      ],
+      max_tokens: 200
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) throw new Error(data.error.message || 'API Error');
+    const enhanced = data.choices?.[0]?.message?.content?.trim();
+    if (enhanced) {
+      ta.value = enhanced;
+      msg('\u2705 Prompt verbessert!');
+      if (progress) progress.textContent = '\u2705 Prompt verbessert!';
+    }
+  })
+  .catch(err => {
+    msg('\u26a0\ufe0f LLM Fehler: ' + err.message.substring(0, 30));
+    if (progress) progress.textContent = '\u26a0\ufe0f Fallback zu Pollinations...';
+    callPollinationsText(prompt, ta, progress);
+  });
+}
+
+function callPollinationsText(prompt, ta, progress) {
+  const url = 'https://text.pollinations.ai/prompt/' + encodeURIComponent(
+    'Enhance this image prompt. Add details, style words, quality. Reply ONLY with enhanced prompt: ' + prompt
+  );
+  
+  fetch(url)
+    .then(r => r.text())
+    .then(text => {
+      if (text && text.length > prompt.length && !text.includes('error')) {
+        ta.value = text.trim();
+        msg('\u2705 Prompt verbessert!');
+        if (progress) progress.textContent = '\u2705 Prompt verbessert!';
+      } else {
+        msg('\u26a0\ufe0f KI nicht verf\u00fcgbar, benutze manuelle Verbesserung');
+        fallbackEnhance(prompt, ta, progress);
+      }
+    })
+    .catch(() => {
+      fallbackEnhance(prompt, ta, progress);
+    });
+}
+
+function fallbackEnhance(prompt, ta, progress) {
+  // Lokale Verbesserung ohne API
+  let enhanced = prompt;
+  const extras = ['hochdetailliert', '4K', 'scharfer Fokus', 'Meisterwerk'];
+  if (!enhanced.toLowerCase().includes('detail')) enhanced += ', ' + extras[0];
+  if (!enhanced.toLowerCase().includes('4k')) enhanced += ', 4K';
+  ta.value = enhanced;
+  msg('\u2728 Prompt lokal verbessert');
+  if (progress) progress.textContent = '\u2728 Prompt lokal verbessert';
+}
+
 </script>
 </body>
 </html>
