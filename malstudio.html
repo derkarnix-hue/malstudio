@@ -137,11 +137,10 @@ function renderControls() {
               <option value=pastel>Pastell</option>
               <option value=mono>Monochrom</option>
             </select></label>
-            <label>Generator <select id=ttiProvider>
-              <option value=auto>🔄 Auto (KI → Algorithmus)</option>
+            <label>Modus <select id=ttiProvider>
+              <option value=algorithmic>🎨 Algorithmisch (stabil)</option>
               <option value=pollinations>🤖 Pollinations (KI)</option>
-              <option value=huggingface>🧠 Hugging Face (KI)</option>
-              <option value=algorithmic>🎨 Algorithmisch</option>
+              <option value=auto>🔄 Auto (KI → Algorithmus)</option>
             </select></label>
             <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 ECHTES KI-BILD</button>
             <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
@@ -248,8 +247,6 @@ function renderControls() {
   if (t === 'tti') document.getElementById('ttiPrompt')?.focus();
 }
 
-
-
 // ===== TEXT-TO-IMAGE GENERATOR (Universal) =====
 
 function generateTTI() {
@@ -258,21 +255,16 @@ function generateTTI() {
   const palette = document.getElementById('ttiPalette').value;
   const provider = document.getElementById('ttiProvider').value;
   if (!prompt) { msg('Bitte etwas eingeben!'); return; }
-  
   const p = prompt.toLowerCase();
   const progress = document.getElementById('ttiProgress');
   if (progress) progress.textContent = '';
-  
   ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
-  
   if (provider === 'algorithmic') {
     generateWithAlgorithm(prompt, p, style, palette);
   } else if (provider === 'pollinations') {
     generateWithPollinations(prompt, p, style, palette, progress);
-  } else if (provider === 'huggingface') {
-    generateWithHuggingFace(prompt, p, style, palette, progress);
   } else {
-    if (progress) progress.textContent = '🔄 Versuche Pollinations KI...';
+    if (progress) progress.textContent = '🔄 Versuche Pollinations...';
     generateWithPollinations(prompt, p, style, palette, progress);
   }
 }
