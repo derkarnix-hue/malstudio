@@ -137,10 +137,16 @@ function renderControls() {
               <option value=pastel>Pastell</option>
               <option value=mono>Monochrom</option>
             </select></label>
+            <label>Generator <select id=ttiProvider>
+              <option value=auto>🔄 Auto (KI → Algorithmus)</option>
+              <option value=pollinations>🤖 Pollinations (KI)</option>
+              <option value=huggingface>🧠 Hugging Face (KI)</option>
+              <option value=algorithmic>🎨 Algorithmisch</option>
+            </select></label>
             <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 ECHTES KI-BILD</button>
-            <span style="color:#8b5cf6;font-size:11px;">⚡ echte KI via Pollinations</span>
             <button class=danger onclick="if(confirm('Leeren?'))clearCanvas()">🗑</button>
           </div>
+          <div id="ttiProgress" style="color:#8b5cf6;font-size:12px;margin-top:4px;"></div>
         </div>
       `;
       break;
@@ -250,20 +256,142 @@ function generateTTI() {
   const prompt = document.getElementById('ttiPrompt').value.trim();
   const style = document.getElementById('ttiStyle').value;
   const palette = document.getElementById('ttiPalette').value;
+  const provider = document.getElementById('ttiProvider').value;
   if (!prompt) { msg('Bitte etwas eingeben!'); return; }
   
-  msg('Zeichne "' + prompt.substring(0, 30) + '"...');
   const p = prompt.toLowerCase();
+  const progress = document.getElementById('ttiProgress');
+  if (progress) progress.textContent = '';
   
   ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
   
-  // Versuche zuerst Pollinations API (manchmal verf\u00fcgbar)
-  tryPollinations(prompt, p, style, palette);
+  if (provider === 'algorithmic') {
+    generateWithAlgorithm(prompt, p, style, palette);
+  } else if (provider === 'pollinations') {
+    generateWithPollinations(prompt, p, style, palette, progress);
+  } else if (provider === 'huggingface') {
+    generateWithHuggingFace(prompt, p, style, palette, progress);
+  } else {
+    if (progress) progress.textContent = '🔄 Versuche Pollinations KI...';
+    generateWithPollinations(prompt, p, style, palette, progress);
+  }
 }
 
-function tryPollinations(prompt, p, style, palette) {
-  // KI-API ist meist rate-limitiert - direkt zum Zeichner springen
+function progressMsg(el, text) {
+  if (el) el.textContent = text;
+}
+
+function generateWithPollinations(prompt, p, style, palette, progress) {
+  msg('🎨 KI generiert Bild...');
+  progressMsg(progress, '🤖 Kontaktiere Pollinations...');
+  
+  const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + 
+              '?width=1024&height=1024&seed=' + Math.floor(Math.random() * 100000) + '&nologo=true';
+  
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  
+  const timeout = setTimeout(() => {
+    progressMsg(progress, '⏱️ Pollinations Zeitüberschreitung → Fallback');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+  }, 15000);
+  
+  img.onload = function() {
+    clearTimeout(timeout);
+    msg('✅ KI-Bild empfangen!');
+    progressMsg(progress, '✅ Fertig!');
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(img, 0, 0, W, H);
+    saveState();
+  };
+  
+  img.onerror = function() {
+    clearTimeout(timeout);
+    const img2 = new Image();
+    const timeout2 = setTimeout(() => {
+      progressMsg(progress, '⏱️ Keine Antwort → Algorithmus');
+      setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    }, 10000);
+    img2.onload = function() {
+      clearTimeout(timeout2);
+      msg('✅ KI-Bild empfangen!');
+      progressMsg(progress, '✅ Fertig!');
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(img2, 0, 0, W, H);
+      saveState();
+    };
+    img2.onerror = function() {
+      clearTimeout(timeout2);
+      if (document.getElementById('ttiProvider').value === 'auto') {
+        progressMsg(progress, '🔄 Pollinations nicht verfügbar → Hugging Face...');
+        generateWithHuggingFace(prompt, p, style, palette, progress);
+      } else {
+        progressMsg(progress, '⚠️ Pollinations nicht verfügbar');
+        msg('⚠️ KI-API nicht erreichbar');
+        setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+      }
+    };
+    img2.src = url;
+  };
+  
+  img.src = url;
+}
+
+function generateWithHuggingFace(prompt, p, style, palette, progress) {
+  msg('🧠 Hugging Face generiert...');
+  progressMsg(progress, '🧠 Kontaktiere Hugging Face...');
+  
+  const models = ['stabilityai/stable-diffusion-xl-base-1.0', 'runwayml/stable-diffusion-v1-5', 'prompthero/openjourney-v4'];
+  const model = models[Math.floor(Math.random() * models.length)];
+  
+  fetch('https://api-inference.huggingface.co/models/' + model, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inputs: prompt })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.blob();
+  })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+      msg('✅ Hugging Face Bild empfangen!');
+      progressMsg(progress, '✅ Fertig!');
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(img, 0, 0, W, H);
+      saveState();
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      if (document.getElementById('ttiProvider').value === 'auto') {
+        progressMsg(progress, '🔄 Hugging Face nicht verfügbar → Algorithmus');
+        generateWithAlgorithm(prompt, p, style, palette);
+      } else {
+        progressMsg(progress, '⚠️ Hugging Face Fehler');
+        msg('⚠️ KI-API Fehler');
+      }
+    };
+    img.src = url;
+  })
+  .catch(err => {
+    progressMsg(progress, '⚠️ HF: ' + err.message.substring(0, 20));
+    if (document.getElementById('ttiProvider').value === 'auto') {
+      setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    } else {
+      msg('⚠️ Hugging Face: ' + err.message.substring(0, 40));
+    }
+  });
+}
+
+function generateWithAlgorithm(prompt, p, style, palette) {
+  msg('🎨 Zeichne...');
+  const progress = document.getElementById('ttiProgress');
+  if (progress) progress.textContent = '🎨 Zeichne algorithmisch...';
   fallbackGenerate(prompt, p, style, palette);
+  if (progress) progress.textContent = '✅ Fertig (algorithmisch)';
 }
 
 function fallbackGenerate(prompt, p, style, palette) {
