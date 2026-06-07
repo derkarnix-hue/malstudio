@@ -161,14 +161,16 @@ function renderControls() {
               <option value=pastel>Pastell</option>
               <option value=mono>Monochrom</option>
             </select></label>
-            <label>KI <select id=ttiProvider>
+            <label>KI <select id=ttiProvider onchange="onProviderChange()">
               <option value=auto>🔄 Auto (KI → Algorithmus)</option>
-              <option value=pollinations>🤖 Pollinations</option>
-              <option value=huggingface>🧠 Hugging Face</option>
-              <option value=stability>🟣 Stability AI</option>
-              <option value=deepai>🔵 DeepAI</option>
-              <option value=algorithmic>🎨 Algorithmisch</option>
+              <option value=pollinations>🤖 Pollinations (kein Key)</option>
+              <option value=huggingface>🧠 Hugging Face (7 Modelle)</option>
+              <option value=githubmodels>🐙 GitHub Models (FLUX/SDXL)</option>
+              <option value=deepai>🔵 DeepAI (Free Key)</option>
+              <option value=algorithmic>🎨 Algorithmisch (Offline)</option>
             </select></label>
+            <button onclick="toggleHFModels()" title="HF-Modell wählen" style="background:#8b5cf6;">🧠 HF</button>
+            <button onclick="toggleApiKeys()" title="API-Keys" style="background:#6366f1;">🔑</button>
             <button onclick="enhancePrompt()" title="Prompt verbessern" style="background:#f59e0b;">✨</button>
             <button onclick="generateTTI()" style="padding:10px 24px;font-size:15px;background:#8b5cf6;">🤖 GENERIEREN</button>
             <button onclick="batchGenerate()" title="4 Varianten" style="background:#06b6d4;">🎲 Batch</button>
@@ -192,6 +194,28 @@ function renderControls() {
           <div id="ttiBatch" class="tti-batch" style="display:none;margin-top:6px;"></div>
           <div id="ttiGallery" class="gallery-wrap" style="display:none;margin-top:6px;"></div>
           <div id="ttiProgress" style="color:#8b5cf6;font-size:12px;margin-top:4px;"></div>
+          <div id="hfModelPanel" style="display:none;background:#1e293b;border-radius:8px;padding:8px;margin-top:4px;">
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">🧠 Hugging Face Modell wählen:</div>
+            <select id="hfModelSelect" style="width:100%;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:4px 8px;font-size:12px;">
+              <option value="stabilityai/stable-diffusion-xl-base-1.0">SD XL Base 1.0</option>
+              <option value="black-forest-labs/FLUX.1-dev">FLUX.1-dev</option>
+              <option value="runwayml/stable-diffusion-v1-5">SD 1.5</option>
+              <option value="prompthero/openjourney-v4">OpenJourney v4</option>
+              <option value="dreamshaper/dreamshaper-xl-turbo">DreamShaper XL Turbo</option>
+              <option value="ByteDance/SDXL-Lightning">SDXL Lightning</option>
+              <option value="stabilityai/stable-diffusion-2-1">SD 2.1</option>
+            </select>
+            <div style="font-size:11px;color:#64748b;margin-top:4px;">Manche Modelle brauchen einen HF-Token</div>
+          </div>
+          <div id="apiKeysPanel" style="display:none;background:#1e293b;border-radius:8px;padding:10px;margin-top:4px;">
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">🔑 API-Keys (optional – werden nur im Browser gespeichert)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+              <label style="font-size:11px;color:#94a3b8;">🐙 GitHub Token <input type="password" id="githubToken" style="width:120px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:3px 6px;font-size:11px;" placeholder="ghp_..."></label>
+              <label style="font-size:11px;color:#94a3b8;">🔵 DeepAI Key <input type="password" id="deepaiKey" style="width:100px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:3px 6px;font-size:11px;" placeholder="quickapi-..."></label>
+              <label style="font-size:11px;color:#94a3b8;">🧠 HF Token <input type="password" id="hfToken" style="width:100px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:4px;padding:3px 6px;font-size:11px;" placeholder="hf_..."></label>
+              <button onclick="saveApiKeys()" style="background:#10b981;font-size:11px;padding:4px 10px;">💾 Speichern</button>
+            </div>
+          </div>
         </div>
       `;
       break;
@@ -1754,6 +1778,288 @@ if("serviceWorker" in navigator) {
     }
   }
 })();
+
+
+
+// ===== API-KEY VERWALTUNG =====
+function toggleApiKeys() {
+  const p = document.getElementById('apiKeysPanel');
+  if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  // Geladene Keys anzeigen
+  try {
+    document.getElementById('githubToken').value = localStorage.getItem('malstudio_github_token') || '';
+    document.getElementById('deepaiKey').value = localStorage.getItem('malstudio_deepai_key') || '';
+    document.getElementById('hfToken').value = localStorage.getItem('malstudio_hf_token') || '';
+  } catch(e) {}
+}
+
+function saveApiKeys() {
+  try {
+    localStorage.setItem('malstudio_github_token', document.getElementById('githubToken').value || '');
+    localStorage.setItem('malstudio_deepai_key', document.getElementById('deepaiKey').value || '');
+    localStorage.setItem('malstudio_hf_token', document.getElementById('hfToken').value || '');
+    msg('\u2705 API-Keys gespeichert!');
+  } catch(e) { msg('\u26a0\ufe0f Fehler beim Speichern'); }
+}
+
+function onProviderChange() {
+  const prov = document.getElementById('ttiProvider').value;
+  const hfPanel = document.getElementById('hfModelPanel');
+  const keysPanel = document.getElementById('apiKeysPanel');
+  if (hfPanel) hfPanel.style.display = 'none';
+  if (keysPanel) keysPanel.style.display = 'none';
+  if (prov === 'huggingface' && hfPanel) hfPanel.style.display = 'block';
+}
+
+function toggleHFModels() {
+  const p = document.getElementById('hfModelPanel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+// ===== GITHUB MODELS (FLUX.1 / SDXL via GitHub Token) =====
+function generateWithGitHubModels(prompt, p, style, palette, progress) {
+  const token = localStorage.getItem('malstudio_github_token');
+  if (!token) {
+    progressMsg(progress, '\u26a0\ufe0f Kein GitHub Token! \u2192 Fallback');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    return;
+  }
+  
+  msg('\U0001f419 GitHub Models generiert...');
+  progressMsg(progress, '\U0001f419 GitHub Models (FLUX.1)...');
+  
+  // Versuche FLUX.1-dev via GitHub Models
+  fetch('https://models.inference.ai.azure.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify({
+      model: 'FLUX.1-dev',
+      messages: [{ role: 'user', content: 'Generate an image: ' + prompt }],
+      n: 1
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) throw new Error(data.error.message || 'API Error');
+    msg('\u2705 GitHub Models Bild!');
+    progressMsg(progress, '\u2705 Fertig!');
+    // GitHub Models gibt meist einen URL oder Base64 zurück
+    if (data.choices && data.choices[0]) {
+      const content = data.choices[0].message.content;
+      // Versuche Base64-Bild zu finden
+      const b64match = content.match(/data:image\/(png|jpeg|webp);base64,([^"]+)/);
+      if (b64match) {
+        const img = new Image();
+        img.onload = function() {
+          ctx.clearRect(0,0,W,H);
+          ctx.drawImage(img, 0, 0, W, H);
+          saveState();
+          saveToGallery(prompt);
+        };
+        img.src = 'data:image/' + b64match[1] + ';base64,' + b64match[2];
+        return;
+      }
+      // Oder URL
+      const urlMatch = content.match(/https?:\\/\\/[^"\s]+/);
+      if (urlMatch) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+          ctx.clearRect(0,0,W,H);
+          ctx.drawImage(img, 0, 0, W, H);
+          saveState();
+          saveToGallery(prompt);
+        };
+        img.onerror = function() {
+          progressMsg(progress, '\u26a0\ufe0f GitHub Models Formatfehler \u2192 Algorithmus');
+          generateWithAlgorithm(prompt, p, style, palette);
+        };
+        img.src = urlMatch[1];
+        return;
+      }
+    }
+    throw new Error('Kein Bild in Antwort');
+  })
+  .catch(err => {
+    progressMsg(progress, '\u26a0\ufe0f GitHub Models: ' + err.message.substring(0, 30));
+    if (document.getElementById('ttiProvider').value === 'auto') {
+      generateWithHuggingFace(prompt, p, style, palette, progress);
+    } else {
+      generateWithAlgorithm(prompt, p, style, palette);
+    }
+  });
+}
+
+// ===== ERWEITERTE HUGGING FACE MIT MODELLAUSWAHL =====
+// Überschreibe generateWithHuggingFace (falls vorhanden)
+if (typeof generateWithHuggingFace_original === 'undefined') {
+  var generateWithHuggingFace_original = typeof generateWithHuggingFace !== 'undefined' ? generateWithHuggingFace : null;
+}
+
+generateWithHuggingFace = function(prompt, p, style, palette, progress) {
+  const modelSelect = document.getElementById('hfModelSelect');
+  const model = modelSelect ? modelSelect.value : 'stabilityai/stable-diffusion-xl-base-1.0';
+  const hfToken = localStorage.getItem('malstudio_hf_token') || '';
+  
+  msg('\U0001f9e0 ' + model.split('/').pop() + '...');
+  progressMsg(progress, '\U0001f9e0 ' + model.split('/').pop().substring(0, 20) + '...');
+  
+  const res = document.getElementById('ttiRes')?.value || 1024;
+  const neg = document.getElementById('ttiNegPrompt')?.value || '';
+  
+  const body = { inputs: prompt, parameters: { width: parseInt(res), height: parseInt(res) } };
+  if (neg) body.parameters.negative_prompt = neg;
+  
+  const headers = { 'Content-Type': 'application/json' };
+  if (hfToken) headers['Authorization'] = 'Bearer ' + hfToken;
+  
+  fetch('https://api-inference.huggingface.co/models/' + model, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body)
+  })
+  .then(res => {
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) throw new Error('Token n\u00f6tig f\u00fcr ' + model.split('/').pop());
+      throw new Error('HTTP ' + res.status);
+    }
+    return res.blob();
+  })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+      msg('\u2705 ' + model.split('/').pop() + ' Bild!');
+      progressMsg(progress, '\u2705 Fertig!');
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(img, 0, 0, W, H);
+      saveState();
+      saveToGallery(prompt);
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      handleHuggingFaceFallback(prompt, p, style, palette, progress, model);
+    };
+    img.src = url;
+  })
+  .catch(err => {
+    progressMsg(progress, '\u26a0\ufe0f ' + err.message.substring(0, 30));
+    handleHuggingFaceFallback(prompt, p, style, palette, progress, model);
+  });
+};
+
+function handleHuggingFaceFallback(prompt, p, style, palette, progress, model) {
+  const provider = document.getElementById('ttiProvider').value;
+  if (provider === 'auto') {
+    progressMsg(progress, '\U0001f504 HF nicht verf\u00fcgbar \u2192 Pollinations');
+    generateWithPollinations(prompt, p, style, palette, progress);
+  } else {
+    progressMsg(progress, '\u26a0\ufe0f HF nicht verf\u00fcgbar');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+  }
+}
+
+// ===== ERWEITERTE DEEPAI MIT API-KEY =====
+generateWithDeepAI = function(prompt, p, style, palette, progress) {
+  const key = localStorage.getItem('malstudio_deepai_key');
+  if (!key) {
+    progressMsg(progress, '\u26a0\ufe0f Kein DeepAI Key! \u2192 Fallback');
+    setTimeout(() => generateWithAlgorithm(prompt, p, style, palette), 100);
+    return;
+  }
+  
+  msg('\U0001f535 DeepAI generiert...');
+  progressMsg(progress, '\U0001f535 DeepAI SDXL...');
+  
+  fetch('https://api.deepai.org/api/text2img', {
+    method: 'POST',
+    headers: { 'Api-Key': key },
+    body: new URLSearchParams({ text: prompt + ', high quality, detailed' })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.err) throw new Error(data.err);
+    if (data.output_url) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function() {
+        msg('\u2705 DeepAI Bild!');
+        progressMsg(progress, '\u2705 Fertig!');
+        ctx.clearRect(0,0,W,H);
+        ctx.drawImage(img, 0, 0, W, H);
+        saveState();
+        saveToGallery(prompt);
+      };
+      img.onerror = function() {
+        progressMsg(progress, '\u26a0\ufe0f DeepAI Fehler \u2192 Fallback');
+        handleDeepAIFallback(prompt, p, style, palette, progress);
+      };
+      img.src = data.output_url;
+    } else {
+      throw new Error('Keine URL');
+    }
+  })
+  .catch(err => {
+    progressMsg(progress, '\u26a0\ufe0f DeepAI: ' + err.message.substring(0, 25));
+    handleDeepAIFallback(prompt, p, style, palette, progress);
+  });
+};
+
+function handleDeepAIFallback(prompt, p, style, palette, progress) {
+  const provider = document.getElementById('ttiProvider').value;
+  if (provider === 'auto') {
+    generateWithStability(prompt, p, style, palette, progress);
+  } else {
+    generateWithAlgorithm(prompt, p, style, palette);
+  }
+}
+
+// ===== GENERATE TTI UPDATED =====
+// Original sichern falls schon definiert
+if (typeof generateTTI_original === 'undefined') {
+  var generateTTI_original = typeof generateTTI !== 'undefined' ? generateTTI : null;
+}
+
+generateTTI = function() {
+  const prompt = document.getElementById('ttiPrompt').value.trim();
+  const style = document.getElementById('ttiStyle').value;
+  const palette = document.getElementById('ttiPalette').value;
+  const provider = document.getElementById('ttiProvider').value;
+  if (!prompt) { msg('Bitte etwas eingeben!'); return; }
+  
+  const p = prompt.toLowerCase();
+  const progress = document.getElementById('ttiProgress');
+  if (progress) progress.textContent = '';
+  
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,W,H);
+  
+  switch(provider) {
+    case 'githubmodels': generateWithGitHubModels(prompt, p, style, palette, progress); break;
+    case 'deepai':        generateWithDeepAI(prompt, p, style, palette, progress); break;
+    case 'huggingface':   generateWithHuggingFace(prompt, p, style, palette, progress); break;
+    case 'pollinations':  generateWithPollinations(prompt, p, style, palette, progress); break;
+    case 'stability':     generateWithStability(prompt, p, style, palette, progress); break;
+    case 'algorithmic':   generateWithAlgorithm(prompt, p, style, palette); break;
+    default: /* auto */
+      if (progress) progress.textContent = '\U0001f504 Versuche Pollinations...';
+      generateWithPollinations(prompt, p, style, palette, progress);
+  }
+};
+
+// Initialisierung
+setTimeout(() => {
+  renderPromptSuggestions();
+  // API-Keys aus localStorage laden
+  try {
+    const gt = localStorage.getItem('malstudio_github_token');
+    if (gt) document.getElementById('githubToken').value = gt;
+  } catch(e) {}
+}, 200);
 
 </script>
 </body>
